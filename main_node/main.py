@@ -27,6 +27,8 @@ from tools.initial_config import load_experiment_setup
 from tools.mongo_dao import MongoDB
 from WorkerServiceClient.WSClient_events import WSClient
 
+from reconfiguration.reconfigure_module import ReconfigureModule
+
 logging.getLogger("pika").setLevel(logging.WARNING)
 
 
@@ -80,7 +82,7 @@ class MainThread(threading.Thread):
             if len(argv) > 1:
                 exp_desc_file_path = argv[1]
             else:
-                exp_desc_file_path = './Resources/EnergyExperiment/EnergyExperiment.json'
+                exp_desc_file_path = './Resources/Mock/MockExperiment.json'
                 log_msg = f"The Experiment Setup was not provided and the path to an experiment file was not specified." \
                           f" The default one will be executed: {exp_desc_file_path}"
                 self.logger.warning(log_msg)
@@ -153,7 +155,12 @@ class MainThread(threading.Thread):
         RepeaterOrchestration(experiment_id=self.experiment.unique_id, experiment=self.experiment)
 
         self.configuration_selection = ConfigurationSelection(self.experiment)
-        
+
+        self.reconf = ReconfigureModule(self.experiment, self.configuration_selection)
+        self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
+        #self.reconf.change_feature("mersenne_twister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
+        return
+    
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
         temp_msg = "Measuring default Configuration."
