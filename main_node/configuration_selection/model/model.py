@@ -91,10 +91,11 @@ class Model:
                 self.internal_validator = self.validator_orchestrator.get_validator(validator_description[k], region, objectives)
 
         # candidate selector
-        self.candidate_selector_orchestrator = CandidateSelectorOrchestrator()
         candidate_selector_description = model_description[1]["CandidateSelector"]
-        self.candidate_selector = self.candidate_selector_orchestrator.get_candidate_selector(candidate_selector_description)
-        print("Seletctor descr:", candidate_selector_description)
+        self.candidate_selector_orchestrator = CandidateSelectorOrchestrator(candidate_selector_description)
+        
+        #self.candidate_selector = self.candidate_selector_orchestrator.get_candidate_selector(candidate_selector_description)
+        #print("Seletctor descr:", candidate_selector_description)
 
         # transfer learning
         self.time_to_build = None
@@ -274,7 +275,7 @@ class Model:
         else:
             names_and_objectives = [r.name for r in self.region] + ["Y"]
 
-        selected_candidates = self.candidate_selector.select_candidates(optimized_full[names_and_objectives])
+        selected_candidates = self.candidate_selector_orchestrator.get().select_candidates(optimized_full[names_and_objectives])
 
         return pd.DataFrame(selected_candidates)
 

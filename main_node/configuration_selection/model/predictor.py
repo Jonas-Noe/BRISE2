@@ -33,7 +33,7 @@ class Predictor:
         self.task_config = experiment_description["Context"]["TaskConfiguration"]
         self.search_space = search_space
         self.window_size = self.predictor_config["WindowSize"]
-        self.sampling_strategy_orchestrator = SamplingStrategyOrchestrator()
+        #self.sampling_strategy_orchestrator = SamplingStrategyOrchestrator()
 
         self.logger = logging.getLogger(__name__)
 
@@ -51,19 +51,18 @@ class Predictor:
 
         self.mapping_region_sampling_strategy = {}
         for r in self.search_space.regions:
-            sampling_strategy = (self.sampling_strategy_orchestrator.
-                                 get_sampling_strategy
-                                 (experiment_description["ConfigurationSelection"]["SamplingStrategy"], r))
-            print("Got Strategy:", experiment_description["ConfigurationSelection"]["SamplingStrategy"])
-            self.mapping_region_sampling_strategy[r] = sampling_strategy
+            #sampling_strategy = (self.sampling_strategy_orchestrator.
+            #                     get_sampling_strategy
+            #                     (experiment_description["ConfigurationSelection"]["SamplingStrategy"], r))
+            #print("Got Strategy:", experiment_description["ConfigurationSelection"]["SamplingStrategy"])
+            self.mapping_region_sampling_strategy[r] = SamplingStrategyOrchestrator(experiment_description["ConfigurationSelection"]["SamplingStrategy"], r)
 
         self.hierarchical_models_dumps = []
 
         self.logger = logging.getLogger(__name__)
-        print("SAMPLING STRATEGY")
-        print(sampling_strategy, sampling_strategy.names)
 
     def change_sampling_startegy(self, sampling_strategy:tuple):
+        return
         for r in self.search_space.regions:
             sampling_strategy = (self.sampling_strategy_orchestrator.
                                  get_sampling_strategy(sampling_strategy, r))
@@ -129,7 +128,7 @@ class Predictor:
 
                     if partial_configuration.empty:
                         configuration_type = Configuration.Type.FROM_SELECTOR
-                        partial_configuration = self.mapping_region_sampling_strategy[region].sample()
+                        partial_configuration = self.mapping_region_sampling_strategy[region].get().sample()
                         if predicted.empty:
                             predicted = partial_configuration
                         else:
@@ -151,7 +150,7 @@ class Predictor:
                             predicted = pd.merge(predicted, partial_configuration, left_index=True, right_index=True)
                 else:
                     configuration_type = Configuration.Type.FROM_SELECTOR
-                    partial_configuration = self.mapping_region_sampling_strategy[region].sample()
+                    partial_configuration = self.mapping_region_sampling_strategy[region].get().sample()
                     if predicted.empty:
                         predicted = partial_configuration
                     else:

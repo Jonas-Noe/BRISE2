@@ -1,5 +1,8 @@
+from reconfiguration.reconfiguration_executor import ReconfigurationExecutor
+
 from core_entities.experiment import Experiment
 from configuration_selection.configuration_selection import ConfigurationSelection
+
 from enum import Enum
 from copy import deepcopy
 
@@ -12,7 +15,8 @@ class State(Enum):
     # Might not be necessary
     CONFIGURING = 3 # Currenlty performing reconfiguration of components
 
-class ReconfigureModule:
+class ReconfigureModule():
+
     """Handle (re)configuration of all components"""
     def __init__(self, experiment:Experiment, configuration_selection:ConfigurationSelection):
         self.state = State.IDLE
@@ -23,7 +27,20 @@ class ReconfigureModule:
         # Current feature selection
         self._new_experiment_description = deepcopy(experiment.description)
 
-        #print(vars(self.configuration_selection.predictor))
+        self._requested_changes = {}
+
+        # Create the singleton executor to allow for observer registration
+        self.executor = ReconfigurationExecutor()
+        print(self.executor.orchestrators)
+
+    #def init(self, experiment:Experiment, configuration_selection:ConfigurationSelection):
+    #    """Allows to delay the initilization to make sure orchestrators are able to register"""
+    #    self.experiment = experiment
+    #    self.configuration_selection = configuration_selection
+
+        # Current feature selection
+    #    self._new_experiment_description = deepcopy(experiment.description)
+    #    print(self.executor.orchestrators)
 
     ### Outline
     # Provide Methods for every needed variability point to change/re-init the component
@@ -56,12 +73,18 @@ class ReconfigureModule:
         print("Found in current feature selection:", prev_feature_data)
 
         # Update the feature selection
-        self._update_feature_selection(prev_feature_data["keys"], prev_feature_data["parent_key"], new_feature)
+        self._update_feature_selection(prev_feature_data["keys"], prev_feature_data["variability_point"], new_feature)
         #print("New feature selection", self._new_experiment_description)
+
+        self._requested_changes[prev_feature["variability_point"]] = new_feature
 
     def reconfigure(self):
         """Signal that all reconfiguration requests are done. Set state to CONFIG_FINISHED"""
         assert self.state == State.CONFIG_UNFINISHED, "No configuration requested"
+
+        # Perform reconfigure plan/requests
+        for vp, new_feature in self._requested_changes.items():
+            self.executor.change_component(vp, new_feature)
 
         self.state = State.CONFIG_FINISHED
 
@@ -81,7 +104,7 @@ class ReconfigureModule:
     def _get_dict_key(self, feature_name_or_type:str, dictionary:dict, parent_key:str="root", keys:list=[]) -> dict:
         """Return the dictornary with the given key, if it exists in a nested dict. Otherwise return a empty dict"""
         if feature_name_or_type in dictionary:
-            return {"parent_key": parent_key, "parent": dictionary,
+            return {"variability_point": parent_key, "parent": dictionary,
                     "data": dictionary[feature_name_or_type], "keys": keys}
         
         for key, value in dictionary.items():
@@ -93,7 +116,7 @@ class ReconfigureModule:
                 
                 # Found by type
                 if "Type" in value and value["Type"] == feature_name_or_type:
-                    return {"parent_key": parent_key, "parent": dictionary,
+                    return {"variability_point": parent_key, "parent": dictionary,
                             "data": value, "keys": keys}
         
         return None

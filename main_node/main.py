@@ -10,6 +10,7 @@ from enum import Enum
 from sys import argv
 
 import pika
+from reconfiguration.reconfigure_module import ReconfigureModule
 from configuration_selection.configuration_selection import ConfigurationSelection
 from default_config_handler.default_configuration_handler_orchestrator import DefaultConfigHandlerOrchestrator
 from core_entities.configuration import Configuration
@@ -26,8 +27,6 @@ from tools.initial_config import load_experiment_setup
 
 from tools.mongo_dao import MongoDB
 from WorkerServiceClient.WSClient_events import WSClient
-
-from reconfiguration.reconfigure_module import ReconfigureModule
 
 logging.getLogger("pika").setLevel(logging.WARNING)
 
@@ -157,9 +156,10 @@ class MainThread(threading.Thread):
         self.configuration_selection = ConfigurationSelection(self.experiment)
 
         self.reconf = ReconfigureModule(self.experiment, self.configuration_selection)
-        self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
+        #self.reconf.init(self.experiment, self.configuration_selection)
+        #self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
         #self.reconf.change_feature("mersenne_twister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
-        return
+        #return
     
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
@@ -231,13 +231,14 @@ class MainThread(threading.Thread):
 
                 #exit()
                 # Change Strategies here?
+                self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
 
                 # Both working
                 #self.configuration_selection.predictor.change_sampling_startegy({'Sobol': {'Seed': 1, 'Type': 'sobol'}})
                 #self.configuration_selection.predictor.change_sampling_startegy({'MerseneTwister': {'Seed': 1, 'Type': 'mersenne_twister'}})
 
-                self.configuration_selection.predictor.change_candidate_selector({'RandomMultiPointProposal': {'NumberOfPoints': 1, 'Type': 'random_multi_point'}})
-                exit()
+                #self.configuration_selection.predictor.change_candidate_selector({'RandomMultiPointProposal': {'NumberOfPoints': 1, 'Type': 'random_multi_point'}})
+                #exit()
                 self.consume_channel.basic_publish(exchange='get_worker_capacity_exchange',
                                                    routing_key=self.experiment.unique_id,
                                                    body='')
