@@ -60,7 +60,7 @@ class ConfigurationSelection:
         needed_configs = json.loads(body.decode()).get("worker_capacity", 1)
 
         number_of_predicted_configs = (
-            min([model.candidate_selector.number_of_points for model in self.predictor.mapping_region_model.values()]))
+            min([model.candidate_selector_orchestrator.get().number_of_points for model in self.predictor.mapping_region_model.values()]))
 
         predicted_configs = []
         configs_to_be_evaluated = []

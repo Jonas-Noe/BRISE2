@@ -59,36 +59,36 @@ class Model:
             self.mapping_surrogate_objective[surrogate] = objectives
 
         # optimizer
-        self.optimizer_orchestrator = OptimizerOrchestrator()
+        #self.optimizer_orchestrator = OptimizerOrchestrator()
 
         optimizer_types = []
         for key, description in model_description[1].items():
             if "Optimizer" in key:
                 optimizer_types.append(description)
 
-        self.mapping_optimizer_objective: Mapping[Optimizer, dict] = {}
+        self.mapping_optimizer_objective: Mapping[OptimizerOrchestrator, dict] = {}
         if self.mo_handling_surrogate_type == "Compositional":
             i = 0
             for key, value in objectives.items():
                 temp_o = {key: value}
-                optimizer = self.optimizer_orchestrator.get_optimizer(optimizer_types[i], region, temp_o)
-                self.mapping_optimizer_objective[optimizer] = temp_o
+                optimizer_orchestrator = OptimizerOrchestrator(optimizer_types[i], region, temp_o)
+                self.mapping_optimizer_objective[optimizer_orchestrator] = temp_o
                 i += 1
         else:
-            optimizer = self.optimizer_orchestrator.get_optimizer(optimizer_types[0], region, objectives)
-            self.mapping_optimizer_objective[optimizer] = objectives
+            optimizer_orchestrator = OptimizerOrchestrator(optimizer_types[0], region, objectives)
+            self.mapping_optimizer_objective[optimizer_orchestrator] = objectives
 
         # validator
-        self.validator_orchestrator = ValidatorOrchestrator()
+        #self.validator_orchestrator = ValidatorOrchestrator()
         validator_description = model_description[1]["Validator"]
         print("Val Description", validator_description)
-        self.external_validator = None
-        self.internal_validator = None
+        self.external_validator_orchestrator = None
+        self.internal_validator_orchestrator = None
         for k in validator_description.keys():
             if k == 'ExternalValidator':
-                self.external_validator = self.validator_orchestrator.get_validator(validator_description[k], region, objectives)
+                self.external_validator_orchestrator = ValidatorOrchestrator(validator_description[k], region, objectives)
             elif k == 'InternalValidator':
-                self.internal_validator = self.validator_orchestrator.get_validator(validator_description[k], region, objectives)
+                self.internal_validator_orchestrator = ValidatorOrchestrator(validator_description[k], region, objectives)
 
         # candidate selector
         candidate_selector_description = model_description[1]["CandidateSelector"]
@@ -136,7 +136,7 @@ class Model:
 
         result = []
         # outer split of train and test data
-        train_features, train_labels, test_features, test_labels = self.external_validator.train_test_split(features, labels)
+        train_features, train_labels, test_features, test_labels = self.external_validator_orchestrator.get().train_test_split(features, labels)
         if len(train_features) == 1 and len(train_labels) == 1 and len(test_features) == 1 and len(test_labels) == 1:
             if train_features[0].empty or train_labels[0].empty or test_features[0].empty or test_labels[0].empty:
                 return pd.DataFrame(result)
@@ -147,10 +147,10 @@ class Model:
                 considered_objectives = self.mapping_surrogate_objective[s]
                 train_labels_filtered = pd.DataFrame(train_labels[k][list(considered_objectives.keys())])
 
-                if self.internal_validator is not None:
+                if self.internal_validator_orchestrator is not None:
                     # inner split
                     inner_train_features, inner_train_labels, inner_test_features, inner_test_labels = (
-                        self.internal_validator.train_test_split(train_features[k], train_labels_filtered))
+                        self.internal_validator_orchestrator.get().train_test_split(train_features[k], train_labels_filtered))
 
                     if (len(inner_train_features) == 1 and len(inner_train_labels) == 1 and len(
                             inner_test_features) == 1 and len(inner_test_labels) == 1):
@@ -164,7 +164,7 @@ class Model:
                         if not is_built:
                             was_not_built_or_validated = True
                             continue
-                        is_valid, _ = self.internal_validator.validate(s, inner_test_features[k2], inner_test_labels[k2])
+                        is_valid, _ = self.internal_validator_orchestrator.get().validate(s, inner_test_features[k2], inner_test_labels[k2])
                         if not is_valid:
                             was_not_built_or_validated = True
                             continue
@@ -220,7 +220,7 @@ class Model:
                 if not is_built:
                     was_not_built_or_validated = True
                     break
-                is_valid, score = self.external_validator.validate(s, test_features[k], test_labels[k])
+                is_valid, score = self.external_validator_orchestrator.get().validate(s, test_features[k], test_labels[k])
                 if not is_valid:
                     was_not_built_or_validated = True
                     break
@@ -253,8 +253,8 @@ class Model:
                 for optimizer, objective in self.mapping_optimizer_objective.items():  # always 1 optimizer in 2.6.0
                     self.created_surrogates_descriptions_and_objectives_and_optimizer_descriptions.append(
                         {"Surrogate": s.surrogate_description} | {"Objectives_surrogate": s.objectives} | {
-                            "Optimizer": optimizer.optimizer_description} | {"Objectives_optimizer": objective})
-                    optimized = optimizer.optimize(s)
+                            "Optimizer": optimizer.get().optimizer_description} | {"Objectives_optimizer": objective})
+                    optimized = optimizer.get().optimize(s)
                     optimized_full = pd.concat([optimized_full, optimized])
         else:
             composite_surrogate: CompositeSurrogate = created_surrogates[0]
@@ -263,8 +263,8 @@ class Model:
                     if s.objectives == objective:
                         self.created_surrogates_descriptions_and_objectives_and_optimizer_descriptions.append(
                             {"Surrogate": s.surrogate_description} | {"Objectives_surrogate": s.objectives} | {
-                                "Optimizer": optimizer.optimizer_description} | {"Objectives_optimizer": objective})
-                        optimized = optimizer.optimize(s)
+                                "Optimizer": optimizer.get().optimizer_description} | {"Objectives_optimizer": objective})
+                        optimized = optimizer.get().optimize(s)
                         optimized_full = pd.concat([optimized_full, optimized])
 
         # select candidates
@@ -291,7 +291,7 @@ class Model:
             optimizer = s_o_opt["Optimizer"]
             objectives_optimizer = s_o_opt["Objectives_optimizer"]
             surrogates.append(self.surrogate_orchestrator.get_surrogate(surrogate, self.region, objectives_surrogate))
-            optimizers.append(self.optimizer_orchestrator.get_optimizer(optimizer, self.region, objectives_optimizer))
+            optimizers.append(OptimizerOrchestrator(optimizer, self.region, objectives_optimizer))
 
         surrogate_to_be_replaced = []
         for s, o in self.mapping_surrogate_objective.items():

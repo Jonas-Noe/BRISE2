@@ -76,7 +76,7 @@ class ReconfigureModule():
         self._update_feature_selection(prev_feature_data["keys"], prev_feature_data["variability_point"], new_feature)
         #print("New feature selection", self._new_experiment_description)
 
-        self._requested_changes[prev_feature["variability_point"]] = new_feature
+        self._requested_changes[prev_feature_data["variability_point"]] = new_feature
 
     def reconfigure(self):
         """Signal that all reconfiguration requests are done. Set state to CONFIG_FINISHED"""
