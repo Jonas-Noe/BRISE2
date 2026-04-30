@@ -11,6 +11,7 @@ from tools.front_API import API
 from tools.rabbitmq_common_tools import RabbitMQConnection, publish
 from transfer_learning.transfer_learning_module import TransferLearningOrchestrator
 
+from reconfiguration.effector import Effector
 
 class ConfigurationSelection:
     """
@@ -21,12 +22,22 @@ class ConfigurationSelection:
         self.sub = API()
         self.experiment = experiment
 
-        self.predictor: Predictor = Predictor(
-            self.experiment.unique_id,
+        #self.predictor: Predictor = Predictor(
+        #    self.experiment.unique_id,
+        #    self.experiment.description,
+        #    self.experiment.search_space
+        #)
+
+        self.predictor: Effector[Predictor] = Effector[Predictor]("Predictor",\
             self.experiment.description,
-            self.experiment.search_space
+            self.experiment.unique_id,
+            self.experiment.search_space,
+            need_full_description=True,
+            creation_method=lambda description, *args: Predictor(description, args[0], args[1])
         )
+
         # check if TL is available
+        # Could be handled via none Component in Orchestrator...
         if "TransferLearning" in self.experiment.description.keys():
             self.transfer_is_enabled = True
             self.transfer_learning_orchestrator = TransferLearningOrchestrator(self.experiment.description,
@@ -60,7 +71,7 @@ class ConfigurationSelection:
         needed_configs = json.loads(body.decode()).get("worker_capacity", 1)
 
         number_of_predicted_configs = (
-            min([model.candidate_selector_orchestrator.get().number_of_points for model in self.predictor.mapping_region_model.values()]))
+            min([model.candidate_selector_orchestrator.get().number_of_points for model in self.predictor.get().mapping_region_model.values()]))
 
         predicted_configs = []
         configs_to_be_evaluated = []
@@ -70,7 +81,7 @@ class ConfigurationSelection:
         else:
             similar_experiments = self.transfer_learning_orchestrator.ted_module.analyse_experiments_similarity()
             if similar_experiments is None:
-                sampled_config = self.predictor.predict(self.experiment.measured_configurations, True)[0]
+                sampled_config = self.predictor.get().predict(self.experiment.measured_configurations, True)[0]
                 predicted_configs.append(sampled_config)
                 temp_msg = f"Transfer expediency cannot be determined yet. Sampled: {sampled_config}."
                 self.logger.info(temp_msg)
@@ -86,7 +97,7 @@ class ConfigurationSelection:
                                                         transfer_submodules["Model_transfer"].
                                                         recommend_best_model(similar_experiments))
                     if transferred_mapping_region_model is not None:
-                        self.predictor.update_mapping_region_model(transferred_mapping_region_model)
+                        self.predictor.get().update_mapping_region_model(transferred_mapping_region_model)
                         self.logger.info(f"New combination of surrogate models is recommended for this iteration: \
                                                                  {transferred_mapping_region_model.values()}")
                 # Configuration transfer
@@ -112,7 +123,7 @@ class ConfigurationSelection:
                     # take a single config from the prediction
                     elif model_transfer_module is not None and model_transfer_module.is_few_shot:
                         extended_configuration_list = self.experiment.measured_configurations + transferred_configurations
-                        temp_predicted = self.predictor.predict(extended_configuration_list)[0]
+                        temp_predicted = self.predictor.get().predict(extended_configuration_list)[0]
                         predicted_configs.append(temp_predicted)
                         self.logger.info("Measuring a configuration using the transferred model")
                     # regular transfer of configurations
@@ -120,11 +131,11 @@ class ConfigurationSelection:
                         while needed_configs > 0:
                             if needed_configs - number_of_predicted_configs >= 0:
                                 extended_configuration_list = self.experiment.measured_configurations + transferred_configurations
-                                temp_predicted = self.predictor.predict(extended_configuration_list)
+                                temp_predicted = self.predictor.get().predict(extended_configuration_list)
                                 predicted_configs.extend(temp_predicted)
                             else:
                                 extended_configuration_list = self.experiment.measured_configurations + transferred_configurations
-                                temp_predicted = self.predictor.predict(extended_configuration_list)
+                                temp_predicted = self.predictor.get().predict(extended_configuration_list)
                                 predicted_configs.extend(temp_predicted[:needed_configs])
                             needed_configs -= number_of_predicted_configs
                 # regular transfer of models
@@ -145,7 +156,7 @@ class ConfigurationSelection:
                             body=msg)
 
             else:
-                sampled_config = self.predictor.predict(self.experiment.measured_configurations, True)[0]
+                sampled_config = self.predictor.get().predict(self.experiment.measured_configurations, True)[0]
                 temp_msg = f"Predicted configuration {c} has already been evaluated. Randomly sampled {sampled_config}."
                 self.logger.info(temp_msg)
                 configs_to_be_evaluated.append(sampled_config)
@@ -175,10 +186,10 @@ class ConfigurationSelection:
         result = []
         while needed_configs > 0:
             if needed_configs - number_of_predicted_configs >= 0:
-                temp_predicted = self.predictor.predict(self.experiment.measured_configurations)
+                temp_predicted = self.predictor.get().predict(self.experiment.measured_configurations)
                 result.extend(temp_predicted)
             else:
-                temp_predicted = self.predictor.predict(self.experiment.measured_configurations)
+                temp_predicted = self.predictor.get().predict(self.experiment.measured_configurations)
                 result.extend(temp_predicted[:needed_configs])
             needed_configs -= number_of_predicted_configs
         return result

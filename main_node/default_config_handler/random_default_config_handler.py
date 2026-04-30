@@ -7,7 +7,7 @@ from core_entities.configuration import Configuration
 class RandomDefaultConfigurationHandler(DefaultConfigurationHandler):
     def __init__(self, default_configuration_handler_description: dict, experiment: Experiment):
         super().__init__(default_configuration_handler_description, experiment)
-        self.predictor = Predictor(experiment.unique_id, experiment.description, experiment.search_space)
+        self.predictor = Predictor(experiment.description, experiment.unique_id, experiment.search_space)
 
     def get_default_configuration(self) -> Configuration:
         configuration = self.predictor.predict([], True)[0]

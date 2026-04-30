@@ -10,7 +10,7 @@ class ValidatorOrchestrator(Orchestrator[Validator]):
     def __init__(self, description, *args):
         super().__init__("Validator", "configuration_selection/model/validator", description, *args)
 
-    def _create_class_instance(self, description, *args):
+    def _create_component(self, description, *args):
         keys = list(description.keys())
 
         assert len(keys) == 1

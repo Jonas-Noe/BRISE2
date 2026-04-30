@@ -1,26 +1,28 @@
 from reconfiguration.orchestrator import Orchestrator
+from reconfiguration.effector import Effector
 
 class ReconfigurationExecutor():
 
     def __init__(self):
-        self.orchestrators = {}
-        self._init_orchestrators()
+        self.effectors = {}
+        self._update_effectors()
 
-    def _init_orchestrators(self):
-        """Adds all created orchestrators into the ``orchestrator`` dict.
-        Key is the variability point and the values is the orchestrator instance"""
-        for orchestrator in Orchestrator.get_all_orchestrators():
-            vp = orchestrator.variability_point
-            if vp in self.orchestrators:
-                self.orchestrators[vp].append(orchestrator)
+    def _update_effectors(self):
+        """Load all effectors in the `effectors`dict. Key is the variability point and the value is the instance of the effector"""
+        self.effectors = {}
+
+        for effector in Effector.get_all_instances():
+            vp = effector.variability_point
+            if vp in self.effectors:
+                self.effectors[vp].append(effector)
                 return
             
-            self.orchestrators[vp] = [orchestrator]
+            self.effectors[vp] = [effector]
 
-    def change_component(self, variability_point:str, new_description:tuple):
+    def change(self, variability_point:str, new_description:tuple, full_description:tuple):
         """Change the component for the given variability point according to the ``new_description``"""
-        if variability_point not in self.orchestrators:
-            raise KeyError("No orchestrators for the variability point " + variability_point + " found!")
+        if variability_point not in self.effectors:
+            raise KeyError("No effector for the variability point " + variability_point + " found!")
         
-        for o in self.orchestrators[variability_point]:
-            o.change_component(new_description)
+        for o in self.effectors[variability_point]:
+            o.change(full_description if o.need_full_description else new_description)

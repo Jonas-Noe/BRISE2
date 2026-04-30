@@ -11,7 +11,7 @@ class OptimizerOrchestrator(Orchestrator[Optimizer]):
     def __init__(self, description, *args):
         super().__init__("Optimizer", "configuration_selection/model/optimizer", description, *args)
 
-    def _create_class_instance(self, description, *args):
+    def _create_component(self, description, *args):
         keys = list(description['Instance'].keys())
 
         assert len(keys) == 1

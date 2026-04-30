@@ -156,10 +156,6 @@ class MainThread(threading.Thread):
         self.configuration_selection = ConfigurationSelection(self.experiment)
 
         self.reconf = ReconfigureModule(self.experiment, self.configuration_selection)
-        #self.reconf.init(self.experiment, self.configuration_selection)
-        #self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
-        #self.reconf.change_feature("mersenne_twister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
-        #return
     
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
@@ -229,16 +225,68 @@ class MainThread(threading.Thread):
                 self.logger.info(temp_msg)
                 self.sub.send('log', 'info', message=temp_msg)
 
-                #exit()
-                # Change Strategies here?
-                self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
+                # Reconfigure
+                
+                # For Testing
+                if len(self.experiment.evaluated_configurations) <= 3:
+                    #self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
+                    #self.reconf.change_variant("SamplingStrategy", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
 
-                # Both working
-                #self.configuration_selection.predictor.change_sampling_startegy({'Sobol': {'Seed': 1, 'Type': 'sobol'}})
-                #self.configuration_selection.predictor.change_sampling_startegy({'MerseneTwister': {'Seed': 1, 'Type': 'mersenne_twister'}})
+                    self.reconf.change_variant("Optimizer", {"Instance": { "RandomSearch": {
+                                "SamplingSize": 96,
+                                "MultiObjective": True,
+                                "Type": "random_search"
+                            }}})
+                    self.reconf.change_variant("CandidateSelector", {"BestMultiPointProposal": {
+                            "NumberOfPoints": 1,
+                            "Type": "best_multi_point"
+                        }})
+                    """self.reconf.change_variant("Predictor", {"WindowSize": 1.0, "Model": {
+                            "Surrogate": {
+                                "ConfigurationTransformers": {
+                                    "NominalTransformer": {
+                                        "BinaryEncoder": {
+                                            "Type": "binary_transformer",
+                                            "Class": "brise.BinaryEncoder"
+                                        }
+                                    }
+                                },
+                                "Instance": {
+                                    "LinearRegression": {
+                                        "MultiObjective": False,
+                                        "Type": "sklearn_model_wrapper",
+                                        "Class": "sklearn.linear_model.LinearRegression"
+                                    }
+                                }
+                            },
+                            "Optimizer": {
+                                "Instance": {
+                                    "RandomSearch": {
+                                        "SamplingSize": 1000,
+                                        "MultiObjective": True,
+                                        "Type": "random_search"
+                                    }
+                                }
+                            },
+                            "Validator": {
+                                "ExternalValidator": {
+                                    "MockValidator": {
+                                        "Type": "mock_validator"
+                                    }
+                                }
+                            },
+                            "CandidateSelector": {
+                                "BestMultiPointProposal": {
+                                    "NumberOfPoints": 1,
+                                    "Type": "best_multi_point"
+                                }
+                            }
+                        }
+                    })"""
+                    
+                    self.reconf.reconfigure()
+                    exit()
 
-                #self.configuration_selection.predictor.change_candidate_selector({'RandomMultiPointProposal': {'NumberOfPoints': 1, 'Type': 'random_multi_point'}})
-                #exit()
                 self.consume_channel.basic_publish(exchange='get_worker_capacity_exchange',
                                                    routing_key=self.experiment.unique_id,
                                                    body='')

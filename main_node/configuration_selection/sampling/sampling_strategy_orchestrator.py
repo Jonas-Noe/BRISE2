@@ -7,7 +7,7 @@ class SamplingStrategyOrchestrator(Orchestrator[SamplingStrategy]):
     def __init__(self, description, *args):
         super().__init__("SamplingStrategy", "configuration_selection/sampling", description, *args)
 
-    def _create_class_instance(self, description, *args):
+    def _create_component(self, description, *args):
         keys = list(description.keys())
         
         assert len(keys) == 1

@@ -78,6 +78,7 @@ class RepeaterOrchestration:
         :param is_default_configuration: is Repeater called to measure default configuration? default=False
         :return instance of a concrete Repeater
         """
+        # Einfach nur die experiment_description ändern?
         logger = logging.getLogger(__name__)
         parameters = self.experiment_description["RepetitionManager"]
 
@@ -190,7 +191,7 @@ class RepeaterOrchestration:
 
         elif configuration.status['measured']:
             if configuration.type == Configuration.Type.DEFAULT:
-                self._type = self.get_repeater()
+                self._type = self.get_repeater()#? Why not default=true
                 publish(exchange='default_configuration_results_exchange',
                         routing_key=self.experiment_id,
                         body=configuration.to_json())

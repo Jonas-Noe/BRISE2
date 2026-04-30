@@ -25,8 +25,8 @@ class Predictor:
         - select underlying model for each level
     """
     def __init__(self,
-                 experiment_id: str,
                  experiment_description: Mapping,
+                 experiment_id: str,
                  search_space: SearchSpace):
         self.experiment_id = experiment_id
         self.predictor_config = experiment_description["ConfigurationSelection"]["Predictor"]
@@ -61,21 +61,32 @@ class Predictor:
 
         self.logger = logging.getLogger(__name__)
 
-    def change_sampling_startegy(self, sampling_strategy:tuple):
-        return
+    def init(self, *args):
+        assert len(args) == 2
+
+        experiment_description = args[0]
+        self.predictor_config = experiment_description["ConfigurationSelection"]["Predictor"]
+        self.task_config = experiment_description["Context"]["TaskConfiguration"]
+        self.search_space = args[1]
+        self.window_size = self.predictor_config["WindowSize"]
+
+        models_types = []
+        for i in self.predictor_config.items():
+            if "Model" in i[0]:
+                models_types.append(i)
+
+        self.mapping_region_model = {}
         for r in self.search_space.regions:
-            sampling_strategy = (self.sampling_strategy_orchestrator.
-                                 get_sampling_strategy(sampling_strategy, r))
-            print("NEW STRATEGY:", sampling_strategy)
-            self.mapping_region_sampling_strategy[r] = sampling_strategy
+            level = r[0].level
+            type = models_types[level]
+            model = Model(model_description=type, region=r, objectives=self.task_config["Objectives"])
+            self.mapping_region_model[r] = model
 
-    def change_candidate_selector(self, selector_description):
-        for model in self.mapping_region_model.values():
-            model.change_candidate_selector(selector_description)
+        self.mapping_region_sampling_strategy = {}
+        for r in self.search_space.regions:
+            self.mapping_region_sampling_strategy[r] = SamplingStrategyOrchestrator(experiment_description["ConfigurationSelection"]["SamplingStrategy"], r)
 
-    def change_validator(self, validator_description):
-        for model in self.mapping_region_model.values():
-            model.change_validator(validator_description)
+        self.hierarchical_models_dumps = []
 
     def predict(self, measured_configurations: List[Configuration], sample: bool = False) -> List[Configuration]:
         """
