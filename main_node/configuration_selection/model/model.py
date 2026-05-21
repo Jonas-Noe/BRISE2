@@ -24,7 +24,7 @@ class Model:
         self.mo_handling_surrogate_type = None
         self.objectives = objectives
         # surrogate and MO handling
-        self.surrogate_orchestrator = SurrogateOrchestrator()
+        #self.surrogate_orchestrator = SurrogateOrchestrator()
 
         for i in model_description[1].items():
             if "MultiObjectiveHandling" in i[0]:
@@ -35,27 +35,36 @@ class Model:
             if "Surrogate" in key:
                 surrogate_types.append(description)
 
-        self.mapping_surrogate_objective: Mapping[Surrogate, Dict] = {}
+        self.mapping_surrogate_objective: Mapping[SurrogateOrchestrator, Dict] = {}
 
         if self.mo_handling_surrogate_type == "Compositional":
             i = 0
             for key, value in objectives.items():
                 temp_o = {key: value}
-                surrogate = self.surrogate_orchestrator.get_surrogate(surrogate_types[i], region, temp_o)
+                
+                #surrogate = self.surrogate_orchestrator.get_surrogate(surrogate_types[i], region, temp_o)
+                surrogate = SurrogateOrchestrator(surrogate_types[i], region, temp_o, vp="Surrogate_" + str(i), identifiers=[self.model_name])
                 self.mapping_surrogate_objective[surrogate] = temp_o
                 i += 1
         elif self.mo_handling_surrogate_type == "DynamicCompositional" or self.mo_handling_surrogate_type == "Portfolio":
+            #i = 0
             for o_name in objectives.keys():
-                for s in surrogate_types:
-                    surrogate = self.surrogate_orchestrator.get_surrogate(s, region, {o_name: objectives[o_name]})
+                for i, s in enumerate(surrogate_types):
+                    #surrogate = self.surrogate_orchestrator.get_surrogate(s, region, {o_name: objectives[o_name]})
+                    surrogate = SurrogateOrchestrator(s, region, {o_name: objectives[o_name]},
+                                                      vp="Surrogate_" + str(i), identifiers=[self.model_name])
                     self.mapping_surrogate_objective[surrogate] = {o_name: objectives[o_name]}
-            for s in surrogate_types:
-                surrogate = self.surrogate_orchestrator.get_surrogate(s, region, objectives)
-                if surrogate.multi_objective:
+                #i += 1
+            
+            for i, s in enumerate(surrogate_types):
+                #surrogate = self.surrogate_orchestrator.get_surrogate(s, region, objectives)
+                surrogate = SurrogateOrchestrator(s, region, objectives, vp="Surrogate_" + str(i), identifiers=[self.model_name])
+                if surrogate.get().multi_objective:
                     self.mapping_surrogate_objective[surrogate] = objectives
 
         else:  # Scalar Pure None
-            surrogate = self.surrogate_orchestrator.get_surrogate(surrogate_types[0], region, objectives)
+            #surrogate = self.surrogate_orchestrator.get_surrogate(surrogate_types[0], region, objectives)
+            surrogate = SurrogateOrchestrator(surrogate_types[0], region, objectives, identifiers=[self.model_name])
             self.mapping_surrogate_objective[surrogate] = objectives
 
         # optimizer
@@ -71,11 +80,11 @@ class Model:
             i = 0
             for key, value in objectives.items():
                 temp_o = {key: value}
-                optimizer_orchestrator = OptimizerOrchestrator(optimizer_types[i], region, temp_o)
+                optimizer_orchestrator = OptimizerOrchestrator(optimizer_types[i], region, temp_o, vp="Optimizer_" + str(i), identifiers=[self.model_name])
                 self.mapping_optimizer_objective[optimizer_orchestrator] = temp_o
                 i += 1
         else:
-            optimizer_orchestrator = OptimizerOrchestrator(optimizer_types[0], region, objectives)
+            optimizer_orchestrator = OptimizerOrchestrator(optimizer_types[0], region, objectives, identifiers=[self.model_name])
             self.mapping_optimizer_objective[optimizer_orchestrator] = objectives
 
         # validator
@@ -127,7 +136,7 @@ class Model:
             if train_features[0].empty or train_labels[0].empty or test_features[0].empty or test_labels[0].empty:
                 return pd.DataFrame(result)
 
-        promising_surrogates: Mapping[Surrogate, Dict] = {}
+        promising_surrogates: Mapping[SurrogateOrchestrator, Dict] = {}
         for k in range(len(train_features)):
             for s in self.mapping_surrogate_objective.keys():
                 considered_objectives = self.mapping_surrogate_objective[s]
@@ -146,11 +155,11 @@ class Model:
 
                     was_not_built_or_validated = False
                     for k2 in range(len(inner_train_features)):
-                        is_built = s.create(inner_train_features[k2], inner_train_labels[k2])
+                        is_built = s.get().create(inner_train_features[k2], inner_train_labels[k2])
                         if not is_built:
                             was_not_built_or_validated = True
                             continue
-                        is_valid, _ = self.internal_validator_orchestrator.get().validate(s, inner_test_features[k2], inner_test_labels[k2])
+                        is_valid, _ = self.internal_validator_orchestrator.get().validate(s.get(), inner_test_features[k2], inner_test_labels[k2])
                         if not is_valid:
                             was_not_built_or_validated = True
                             continue
@@ -159,7 +168,7 @@ class Model:
                     promising_surrogates[s] = considered_objectives
                 else:
                     # create surrogate
-                    is_built = s.create(train_features[k], train_labels_filtered)
+                    is_built = s.get().create(train_features[k], train_labels_filtered)
                     if not is_built:
                         return pd.DataFrame()
                     promising_surrogates[s] = considered_objectives
@@ -238,7 +247,7 @@ class Model:
             for s in created_surrogates:
                 for optimizer, objective in self.mapping_optimizer_objective.items():  # always 1 optimizer in 2.6.0
                     self.created_surrogates_descriptions_and_objectives_and_optimizer_descriptions.append(
-                        {"Surrogate": s.surrogate_description} | {"Objectives_surrogate": s.objectives} | {
+                        {"Surrogate": s.get().surrogate_description} | {"Objectives_surrogate": s.get().objectives} | {
                             "Optimizer": optimizer.get().optimizer_description} | {"Objectives_optimizer": objective})
                     optimized = optimizer.get().optimize(s)
                     optimized_full = pd.concat([optimized_full, optimized])
@@ -248,9 +257,9 @@ class Model:
                 for optimizer, objective in self.mapping_optimizer_objective.items():
                     if s.objectives == objective:
                         self.created_surrogates_descriptions_and_objectives_and_optimizer_descriptions.append(
-                            {"Surrogate": s.surrogate_description} | {"Objectives_surrogate": s.objectives} | {
+                            {"Surrogate": s.get().surrogate_description} | {"Objectives_surrogate": s.objectives} | {
                                 "Optimizer": optimizer.get().optimizer_description} | {"Objectives_optimizer": objective})
-                        optimized = optimizer.get().optimize(s)
+                        optimized = optimizer.get().optimize(s.get())
                         optimized_full = pd.concat([optimized_full, optimized])
 
         # select candidates
@@ -276,8 +285,9 @@ class Model:
             objectives_surrogate = s_o_opt["Objectives_surrogate"]
             optimizer = s_o_opt["Optimizer"]
             objectives_optimizer = s_o_opt["Objectives_optimizer"]
-            surrogates.append(self.surrogate_orchestrator.get_surrogate(surrogate, self.region, objectives_surrogate))
-            optimizers.append(OptimizerOrchestrator(optimizer, self.region, objectives_optimizer))
+            # TODO: Also get the current identfiers / only change the instance via the new description?
+            surrogates.append(SurrogateOrchestrator(surrogate, self.region, objectives_surrogate, identifiers=[self.model_name]))
+            optimizers.append(OptimizerOrchestrator(optimizer, self.region, objectives_optimizer, identifiers=[self.model_name]))
 
         surrogate_to_be_replaced = []
         for s, o in self.mapping_surrogate_objective.items():

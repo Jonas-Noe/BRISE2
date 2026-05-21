@@ -8,8 +8,8 @@ from reconfiguration.orchestrator import Orchestrator
 
 class OptimizerOrchestrator(Orchestrator[Optimizer]):
 
-    def __init__(self, description, *args):
-        super().__init__("Optimizer", "configuration_selection/model/optimizer", description, *args)
+    def __init__(self, description, *args, vp:str="Optimizer", identifiers=None):
+        super().__init__(vp, "configuration_selection/model/optimizer", description, *args, identifiers=identifiers)
 
     def _create_component(self, description, *args):
         keys = list(description['Instance'].keys())

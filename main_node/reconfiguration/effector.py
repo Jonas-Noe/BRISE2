@@ -10,9 +10,10 @@ class Effector(Generic[T]):
     # ValueEff need a var name
     # Component Effector takes in the reference? Would that work when upper component is replaced?
 
-    def __init__(self, variability_point:str, description, *args, creation_method=None, need_full_description:bool=False):
+    def __init__(self, variability_point:str, description, *args, creation_method=None, need_full_description:bool=False, identifiers:None|list=None):
         self.variability_point = variability_point
         self.need_full_description = need_full_description
+        self.identifiers = identifiers
 
         # Internal component that is object of change
         self._current_component = None

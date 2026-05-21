@@ -231,8 +231,14 @@ class MainThread(threading.Thread):
                 if len(self.experiment.evaluated_configurations) <= 3:
                     #self.reconf.change_feature("MersenneTwister", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
                     #self.reconf.change_variant("SamplingStrategy", {'Sobol': {'Seed': 1, 'Type': 'sobol'}})
-
-                    self.reconf.change_variant("Optimizer", {"Instance": { "RandomSearch": {
+                    self.reconf.change_feature("Surrogate", {"Instance": {
+                        "LinearRegression": {
+                            "MultiObjective": False,
+                            "Type": "sklearn_model_wrapper",
+                            "Class": "sklearn.linear_model.LinearRegression"
+                        }
+                    }})
+                    """self.reconf.change_variant("Optimizer", {"Instance": { "RandomSearch": {
                                 "SamplingSize": 96,
                                 "MultiObjective": True,
                                 "Type": "random_search"
@@ -241,7 +247,7 @@ class MainThread(threading.Thread):
                             "NumberOfPoints": 1,
                             "Type": "best_multi_point"
                         }})
-                    """self.reconf.change_variant("Predictor", {"WindowSize": 1.0, "Model": {
+                    self.reconf.change_variant("Predictor", {"WindowSize": 1.0, "Model": {
                             "Surrogate": {
                                 "ConfigurationTransformers": {
                                     "NominalTransformer": {
@@ -284,7 +290,7 @@ class MainThread(threading.Thread):
                         }
                     })"""
                     
-                    self.reconf.reconfigure()
+                    self.reconf.done().reconfigure()
                     exit()
 
                 self.consume_channel.basic_publish(exchange='get_worker_capacity_exchange',

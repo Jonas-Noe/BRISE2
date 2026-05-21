@@ -59,48 +59,61 @@ class ReconfigureModule():
         self._requested_changes[prev_feature_data["variability_point"]] = new_feature
 
     @configure_method
-    def change_variant(self, variability_point:str, new_feature:dict):
+    def change_variant(self, variability_point:str, new_feature:dict, parent_nodes:None|list=None):
         """Request to change the given variability point to a new feature"""
         # Select prev_feature by Type or Key in feature model or both?
-        parent_keys = self._get_variability_point(variability_point, self._new_experiment_description, [])
-        if parent_keys is None:
+        parent_keys_list = self._get_variability_point_keys(variability_point, parent_nodes)
+        if len(parent_keys_list) == 0:
             raise ValueError("Variability point " + variability_point + " was not found in the feature selection!")
-
+        
         # Update the feature selection
-        self._update_feature_selection(parent_keys, variability_point, new_feature)
+        for parent_keys in parent_keys_list:
+            self._update_feature_selection(parent_keys, variability_point, new_feature)
         #print("New feature selection", self._new_experiment_description)
 
-        self._requested_changes[variability_point] = new_feature
+        self._requested_changes[variability_point] = {"description": new_feature, "identifiers": parent_nodes}
 
-    def reconfigure(self):
+        return self
+
+    def done(self):
         """Signal that all reconfiguration requests are done. Set state to CONFIG_FINISHED"""
         assert self.state == State.CONFIG_UNFINISHED, "No configuration requested"
+        self.state = State.CONFIG_FINISHED
+        return self
+
+    def reconfigure(self):
+        """Performs the reconfiguration"""
+        assert self.state == State.CONFIG_FINISHED, "No configuration requested or configuration is unfinished"
 
         # Perform reconfigure plan/requests
-        for vp, new_feature in self._requested_changes.items():
-            self.executor.change(vp, new_feature, self._new_experiment_description)
+        for vp, changes in self._requested_changes.items():
+            self.executor.change(vp, changes["description"], self._new_experiment_description, changes["identifiers"])
 
-        self.state = State.CONFIG_FINISHED
+        self.state = State.IDLE
 
-    def _get_feature_data(self, feature_name_or_type:str)->dict:
-        """Return a dict with the key ``parent`` specifing the variability point and the ``data`` with the
-        configuration data of the feature."""
-        return self._get_dict_key(feature_name_or_type, self._new_experiment_description)
-
-    def _get_variability_point(self, vp:str, feature_selection:dict, parents_keys:list) -> list:
-        """Returns a list of parent keys for the variability point"""
-        if vp in feature_selection:
-            parents_keys.insert(0, vp)
-            return parents_keys
+    def _get_variability_point_keys(self, vp:str, required_parent_nodes:None|list) -> list:
+        """Returns a list of lists with parent keys for the variability point. All vps must have the given parent nodes. Otherwise they will be ignored"""
+        paths = [k.split(" ") for k in self._flatten_keys(self._new_experiment_description, vp)]
+        if required_parent_nodes is None or len(required_parent_nodes) == 0:
+            return paths
         
-        for key, value in feature_selection.items():
+        return [p for p in paths if set(p[-len(required_parent_nodes)-1:-1]) == set(required_parent_nodes)]
+    
+    def _flatten_keys(self, d:dict, search:str, parent_key=""):
+        """Returns a list of strings with the flattend keys that end with the given search term. Single keys are separated by white spaces"""
+        keys = []
+
+        for key, value in d.items():
+            new_key = parent_key + " " + key if parent_key else key
+            if key == search:
+                keys.append(new_key)
+                return keys
+
             if isinstance(value, dict):
-                result = self._get_variability_point(vp, value, parents_keys)
-                if result is not None:
-                    result.insert(0, key)
-                    return result
-        
-        return None
+                keys.extend(self._flatten_keys(value, search, parent_key=new_key))
+                continue
+
+        return keys
 
     def _update_feature_selection(self, keys:list, parent_key:str, new_value):
         """Update the `_new_experiment_description`"""
@@ -111,24 +124,14 @@ class ReconfigureModule():
         
         level[parent_key] = new_value
 
-    def _get_dict_key(self, feature_name_or_type:str, dictionary:dict, parent_key:str="root", keys:list=[]) -> dict:
-        """Return the dictornary with the given key, if it exists in a nested dict. Otherwise return a empty dict"""
-        if feature_name_or_type in dictionary:
-            return {"variability_point": parent_key, "parent": dictionary,
-                    "data": dictionary[feature_name_or_type], "keys": keys}
+    def _update_feature_selection_values(self, keys:list, parent_key:str, new_values:dict):
+        """Update all given values in the `_new_experiment_description` for the given path of keys"""
+        level = self._new_experiment_description
+        keys.remove(parent_key)
+        for key in keys:
+            level = level[key]
         
-        for key, value in dictionary.items():
-            if isinstance(value, dict):
-                result = self._get_dict_key(feature_name_or_type, value, key, keys)
-                if result is not None:
-                    keys.insert(0, key)
-                    return result
-                
-                # Found by type
-                if "Type" in value and value["Type"] == feature_name_or_type:
-                    return {"variability_point": parent_key, "parent": dictionary,
-                            "data": value, "keys": keys}
-        
-        return None
+        for key, value in new_values.items():
+            level[parent_key][key] = value
     
     
