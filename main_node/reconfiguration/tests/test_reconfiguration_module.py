@@ -1,6 +1,7 @@
 import pytest
 
 from reconfiguration.reconfigure_module import ReconfigureModule
+from reconfiguration.effector import Effector
 from core_entities.experiment import Experiment
 from configuration_selection.model.model import Model
 from configuration_selection.configuration_selection import ConfigurationSelection
@@ -138,9 +139,8 @@ class TestReconfigurationModule:
         surrogate_types = ["LinearRegression", "GradientBoostingRegressor", "BayesianRidgeRegression", "ModelMock"]
         for model in model_ones:
             for s in list(model.mapping_surrogate_objective.keys()):
-                print(s.variability_point, s.identifiers, s.get().feature_name)
                 assert s.get().feature_name in surrogate_types
-        
+
         # Change
         surrogate_desc = {"Instance": {"ModelMock": {
                             "MultiObjective": True,
@@ -149,10 +149,9 @@ class TestReconfigurationModule:
                     }}
         reconf_module.change_variant("Surrogate_0", surrogate_desc, ["Model_1"])
         reconf_module.done().reconfigure()
-        print("Changed")
+        
         # Assert that change was correct
         surrogate_types = ["GradientBoostingRegressor", "BayesianRidgeRegression", "ModelMock"] # No LinearRegression any more
         for model in model_ones:
             for s in list(model.mapping_surrogate_objective.keys()):
-                print(s.variability_point, s.identifiers, s.get().feature_name)
                 assert s.get().feature_name in surrogate_types

@@ -15,7 +15,7 @@ class ReconfigurationExecutor():
             vp = effector.variability_point
             if vp in self.effectors:
                 self.effectors[vp].append(effector)
-                return
+                continue
             
             self.effectors[vp] = [effector]
 
@@ -25,7 +25,6 @@ class ReconfigurationExecutor():
             raise KeyError("No effector for the variability point " + variability_point + " found!")
         
         for o in self.effectors[variability_point]:
-            print(o)
             if identifiers is not None and len(identifiers) != 0: # Allow all identifiers if none are specified
                 if len(o.identifiers) == 0 or set(o.identifiers) != set(identifiers): # (all identifiers must match IF any identifiers are specified)
                     continue

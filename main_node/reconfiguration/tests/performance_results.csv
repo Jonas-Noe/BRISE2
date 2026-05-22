@@ -1,0 +1,16 @@
+single_optimizer_multi_model, 2000, 438.82036067599984
+single_surrogate, 200, 6.822745013000258
+single_optimizer, 200, 15.411279939999986
+single_optimizer_multi_model, 200, 45.563031552999746
+single_surrogate, 200, 8.631361532000028
+single_optimizer, 200, 16.566905400999985
+single_optimizer_multi_model, 200, 47.412925322999854
+single_surrogate, 400, 14.623214823000126
+single_optimizer, 400, 32.50641853500019
+single_optimizer_multi_model, 400, 89.58883432699986
+single_surrogate, 600, 26.62538350299974
+single_optimizer, 600, 49.90901609699995
+single_optimizer_multi_model, 600, 142.20813970500012
+single_surrogate, 800, 28.969294698999875
+single_optimizer, 800, 67.12505867400023
+single_optimizer_multi_model, 800, 192.00862144700022

@@ -53,12 +53,14 @@ class Model:
                     #surrogate = self.surrogate_orchestrator.get_surrogate(s, region, {o_name: objectives[o_name]})
                     surrogate = SurrogateOrchestrator(s, region, {o_name: objectives[o_name]},
                                                       vp="Surrogate_" + str(i), identifiers=[self.model_name])
+                    print("Added surrogate", i, self.model_name)
                     self.mapping_surrogate_objective[surrogate] = {o_name: objectives[o_name]}
                 #i += 1
             
             for i, s in enumerate(surrogate_types):
                 #surrogate = self.surrogate_orchestrator.get_surrogate(s, region, objectives)
                 surrogate = SurrogateOrchestrator(s, region, objectives, vp="Surrogate_" + str(i), identifiers=[self.model_name])
+                print("Added surrogate (down here)", i, self.model_name)
                 if surrogate.get().multi_objective:
                     self.mapping_surrogate_objective[surrogate] = objectives
 

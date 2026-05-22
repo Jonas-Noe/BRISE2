@@ -28,6 +28,7 @@ class Effector(Generic[T]):
         Effector.instances.append(self)
 
     def __delete__(self, instance):
+        print("Deleted effector", instance.variability_point, instance.get())
         Effector.instances.remove(instance)
     
     def set(self, description, *args):
@@ -45,6 +46,9 @@ class Effector(Generic[T]):
     
     def _create_component(self, description, *args) -> T:
         raise NotImplementedError("The method _create_component needs to be implemented!")
+    
+    def __str__(self):
+        return self.variability_point + " " + str(self.identifiers)
     
     @classmethod
     def get_all_instances(cls):
