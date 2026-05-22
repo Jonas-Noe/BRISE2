@@ -14,3 +14,12 @@ single_optimizer_multi_model, 600, 142.20813970500012
 single_surrogate, 800, 28.969294698999875
 single_optimizer, 800, 67.12505867400023
 single_optimizer_multi_model, 800, 192.00862144700022
+single_surrogate, 2, 0.09792292400015867
+single_optimizer, 2, 0.10724093099997845
+single_optimizer_multi_model, 2, 0.3444083970007341
+single_surrogate, 2, 0.09083774100054143
+single_optimizer, 2, 0.10942314499970962
+single_optimizer_multi_model, 2, 0.31337559900021006
+single_surrogate, 2, 0.09491425299984257
+single_optimizer, 2, 0.16806843299946195
+single_optimizer_multi_model, 2, 0.37236189099985495

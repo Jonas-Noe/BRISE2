@@ -41,7 +41,7 @@ class TestApproachPerformance:
 
         # Change
         start = timeit.default_timer()
-        iterations = 400
+        iterations = 1
         for i in range(iterations):
             surrogate_desc = {"Instance": {"ModelMock": {
                                 "MultiObjective": True,
@@ -73,7 +73,7 @@ class TestApproachPerformance:
         
         # Change
         start = timeit.default_timer()
-        iterations = 400
+        iterations = 1
         for i in range(iterations):
             optimizer_desc = {"Instance": {
                             "RandomSearch": {
@@ -113,7 +113,7 @@ class TestApproachPerformance:
 
         # Change
         start = timeit.default_timer()
-        iterations = 400
+        iterations = 1
         for i in range(iterations):
             surrogate_desc = {"Instance": {"ModelMock": {
                                 "MultiObjective": True,

@@ -46,3 +46,30 @@ Time: 67.12505867400023 seconds
 --- single_optimizer_multi_model ---
 Changes: 800
 Time: 192.00862144700022 seconds
+--- single_surrogate ---
+Changes: 2
+Time: 0.09792292400015867 seconds
+--- single_optimizer ---
+Changes: 2
+Time: 0.10724093099997845 seconds
+--- single_optimizer_multi_model ---
+Changes: 2
+Time: 0.3444083970007341 seconds
+--- single_surrogate ---
+Changes: 2
+Time: 0.09083774100054143 seconds
+--- single_optimizer ---
+Changes: 2
+Time: 0.10942314499970962 seconds
+--- single_optimizer_multi_model ---
+Changes: 2
+Time: 0.31337559900021006 seconds
+--- single_surrogate ---
+Changes: 2
+Time: 0.09491425299984257 seconds
+--- single_optimizer ---
+Changes: 2
+Time: 0.16806843299946195 seconds
+--- single_optimizer_multi_model ---
+Changes: 2
+Time: 0.37236189099985495 seconds
