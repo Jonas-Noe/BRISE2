@@ -1,0 +1,45 @@
+--- single_surrogate ---
+Changes: 200
+Time: 153.37464384300074 seconds
+--- single_optimizer ---
+Changes: 200
+Time: 163.3416154659999 seconds
+--- single_optimizer_multi_model ---
+Changes: 200
+Time: 587.1367085410002 seconds
+--- single_surrogate ---
+Changes: 400
+Time: 347.0849622020005 seconds
+--- single_optimizer ---
+Changes: 400
+Time: 351.7933695030006 seconds
+--- single_optimizer_multi_model ---
+Changes: 400
+Time: 715.6983094999996 seconds
+--- single_surrogate ---
+Changes: 2
+Time: 1.0485866360004366 seconds
+--- single_optimizer ---
+Changes: 2
+Time: 1.0926922019998528 seconds
+--- single_optimizer_multi_model ---
+Changes: 2
+Time: 3.970008716999473 seconds
+--- single_surrogate ---
+Changes: 2
+Time: 1.113288429000022 seconds
+--- single_optimizer ---
+Changes: 2
+Time: 1.140435100999639 seconds
+--- single_optimizer_multi_model ---
+Changes: 2
+Time: 4.526723681000476 seconds
+--- single_surrogate ---
+Changes: 2
+Time: 1.4265728219997982 seconds
+--- single_optimizer ---
+Changes: 2
+Time: 1.2476722780002092 seconds
+--- single_optimizer_multi_model ---
+Changes: 2
+Time: 3.9514692009997816 seconds
