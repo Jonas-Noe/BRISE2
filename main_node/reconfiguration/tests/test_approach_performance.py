@@ -30,6 +30,25 @@ class TestApproachPerformance:
         experiment = Experiment(experiment_description, search_space)
         cs = ConfigurationSelection(experiment)
         return ReconfigurationModule(experiment, cs)
+    
+    def test_change_surrogate(self, reconf_module:ReconfigurationModule):
+        start = timeit.default_timer()
+
+        # Change
+        desc = {"Instance": {
+                        "LinearRegression": {
+                            "MultiObjective": False,
+                            "Type": "sklearn_model_wrapper",
+                            "Class": "sklearn.linear_model.LinearRegression"
+                        }
+                    }}
+        reconf_module.change_variant("Surrogate", desc)
+        reconf_module.done().reconfigure()
+
+        end = timeit.default_timer()
+        duration = end - start
+
+        self.save_result("surrogate", 1, duration)
 
     def test_change_single_surrogate(self, reconf_module_multi_features_single_model:ReconfigurationModule):
         reconf_module = reconf_module_multi_features_single_model
