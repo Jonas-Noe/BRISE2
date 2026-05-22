@@ -49,3 +49,9 @@ Time: 0.1254608579993146 seconds
 --- surrogate ---
 Changes: 1
 Time: 0.12521336400004657 seconds
+--- surrogate ---
+Changes: 20
+Time: 0.5639565259998562 seconds
+--- surrogate ---
+Changes: 20
+Time: 0.5714006110001719 seconds
