@@ -40,7 +40,7 @@ class TestApproachPerformance:
         start = timeit.default_timer()
 
         # Change
-        iterations = 20
+        iterations = 400
         for i in range(iterations):
             desc = {"Instance": {
                             "LinearRegression": {

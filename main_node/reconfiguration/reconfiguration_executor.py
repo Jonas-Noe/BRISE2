@@ -30,4 +30,3 @@ class ReconfigurationExecutor():
                     continue
             
             o.change(full_description if o.need_full_description else new_description)
-            print("Changed", o.variability_point, o.identifiers, "to", new_description)

@@ -88,3 +88,12 @@ Time: 0.5928425169995535 seconds
 --- surrogate ---
 Changes: 20
 Time: 0.6644620420001957 seconds
+--- surrogate ---
+Changes: 100
+Time: 2.5805715439983032 seconds
+--- surrogate ---
+Changes: 400
+Time: 10.71515946099862 seconds
+--- surrogate ---
+Changes: 400
+Time: 11.18518904800112 seconds
