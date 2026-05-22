@@ -73,3 +73,18 @@ Time: 0.16806843299946195 seconds
 --- single_optimizer_multi_model ---
 Changes: 2
 Time: 0.37236189099985495 seconds
+--- surrogate ---
+Changes: 1
+Time: 0.11897230399972614 seconds
+--- surrogate ---
+Changes: 1
+Time: 0.1281213829997796 seconds
+--- surrogate ---
+Changes: 1
+Time: 0.1452798519994758 seconds
+--- surrogate ---
+Changes: 20
+Time: 0.5928425169995535 seconds
+--- surrogate ---
+Changes: 20
+Time: 0.6644620420001957 seconds
