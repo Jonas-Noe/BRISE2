@@ -11,7 +11,7 @@ from core_entities.search_space import Hyperparameter
 from core_entities.search_space import SearchSpace
 from tools.mongo_dao import MongoDB
 from configuration_selection.model.model import Model
-
+from reconfiguration.effector import Effector
 
 class Predictor:
     """
@@ -46,7 +46,11 @@ class Predictor:
         for r in self.search_space.regions:
             level = r[0].level
             type = models_types[level]
-            model = Model(model_description=type, region=r, objectives=self.task_config["Objectives"])
+            model:Effector[Model] =\
+                Effector(type[0], type[1],
+                         type[0], r, self.task_config["Objectives"],
+                         creation_method=lambda description, *args:
+                         Model(args[0], description, region=args[1], objectives=args[2]))
             self.mapping_region_model[r] = model
 
         self.mapping_region_sampling_strategy = {}
@@ -60,33 +64,6 @@ class Predictor:
         self.hierarchical_models_dumps = []
 
         self.logger = logging.getLogger(__name__)
-
-    def init(self, *args):
-        assert len(args) == 2
-
-        experiment_description = args[0]
-        self.predictor_config = experiment_description["ConfigurationSelection"]["Predictor"]
-        self.task_config = experiment_description["Context"]["TaskConfiguration"]
-        self.search_space = args[1]
-        self.window_size = self.predictor_config["WindowSize"]
-
-        models_types = []
-        for i in self.predictor_config.items():
-            if "Model" in i[0]:
-                models_types.append(i)
-
-        self.mapping_region_model = {}
-        for r in self.search_space.regions:
-            level = r[0].level
-            type = models_types[level]
-            model = Model(model_description=type, region=r, objectives=self.task_config["Objectives"])
-            self.mapping_region_model[r] = model
-
-        self.mapping_region_sampling_strategy = {}
-        for r in self.search_space.regions:
-            self.mapping_region_sampling_strategy[r] = SamplingStrategyOrchestrator(experiment_description["ConfigurationSelection"]["SamplingStrategy"], r)
-
-        self.hierarchical_models_dumps = []
 
     def predict(self, measured_configurations: List[Configuration], sample: bool = False) -> List[Configuration]:
         """
@@ -135,7 +112,7 @@ class Predictor:
                         lambda cfg: any(map(lambda x: x in considered_hp_names_in_region, list(cfg.parameters.keys()))),
                         considered_configs  # Input data for filter
                     ))
-                    partial_configuration = self.mapping_region_model[region].predict(list(region), considered_configs)
+                    partial_configuration = self.mapping_region_model[region].get().predict(list(region), considered_configs)
 
                     if partial_configuration.empty:
                         configuration_type = Configuration.Type.FROM_SELECTOR
@@ -173,11 +150,11 @@ class Predictor:
 
                 region_index = str(self.search_space.regions.index(region))
                 prediction_info[region_index] = {
-                    "Model": self.mapping_region_model[region].created_surrogates_descriptions_and_objectives_and_optimizer_descriptions,
-                    "time_to_build": self.mapping_region_model[region].time_to_build
-                    if self.mapping_region_model[region].time_to_build is not None else 0}
-                if self.mapping_region_model[region].time_to_build is not None:
-                    model_dump.append(pickle.dumps(self.mapping_region_model[region]))
+                    "Model": self.mapping_region_model[region].get().created_surrogates_descriptions_and_objectives_and_optimizer_descriptions,
+                    "time_to_build": self.mapping_region_model[region].get().time_to_build
+                    if self.mapping_region_model[region].get().time_to_build is not None else 0}
+                if self.mapping_region_model[region].get().time_to_build is not None:
+                    model_dump.append(pickle.dumps(self.mapping_region_model[region].get()))
 
             activated_regions = next_activated_regions
 

@@ -1,6 +1,7 @@
 import pytest
 import timeit
 import os
+import copy
 
 from reconfiguration.reconfigure_module import ReconfigureModule
 from reconfiguration.effector import Effector
@@ -126,6 +127,39 @@ class TestApproachPerformance:
 
         print("Time for", iterations * 2, "changes took", duration, "seconds")
         self.save_result("single_optimizer", iterations * 2, duration)
+        #assert False
+
+    def test_change_single_surrogate_via_model(self, reconf_module_multi_features_single_model:ReconfigureModule):
+        reconf_module = reconf_module_multi_features_single_model
+
+        # Change
+        start = timeit.default_timer()
+        iterations = 100
+        model_desc = copy.deepcopy(reconf_module.experiment.description)["ConfigurationSelection"]["Predictor"]["Model"]
+
+        for i in range(iterations):
+            model_desc["Surrogate_0"] = {"Instance": {"ModelMock": {
+                                "MultiObjective": True,
+                                "Type": "model_mock"
+                            }
+                        }}
+            reconf_module.change_variant("Model", model_desc)
+            reconf_module.done().reconfigure()
+
+            model_desc["Surrogate_0"] = {"Instance": {
+                        "LinearRegression": {
+                            "MultiObjective": False,
+                            "Type": "sklearn_model_wrapper",
+                            "Class": "sklearn.linear_model.LinearRegression"
+                        }
+                    }}
+            reconf_module.change_variant("Model", model_desc)
+            reconf_module.done().reconfigure()
+        end = timeit.default_timer()
+        duration = end - start
+
+        print("Time for", iterations * 2, "changes took", duration, "seconds")
+        self.save_result("single_surrogate_via_model", iterations * 2, duration)
         #assert False
 
     def test_change_single_surrogate_on_multiple_models(self, reconf_module_multi_models:ReconfigureModule):

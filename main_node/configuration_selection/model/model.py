@@ -16,8 +16,8 @@ from configuration_selection.model.surrogate.composite_surrogate import Composit
 
 
 class Model:
-    def __init__(self, model_description: Tuple, region: Tuple, objectives: Dict):
-        self.model_name = model_description[0]
+    def __init__(self, model_name:str, model_description: dict, region: Tuple, objectives: Dict):
+        self.model_name = model_name
         self.model_description = model_description
         self.region = region
 
@@ -26,12 +26,12 @@ class Model:
         # surrogate and MO handling
         #self.surrogate_orchestrator = SurrogateOrchestrator()
 
-        for i in model_description[1].items():
+        for i in model_description.items():
             if "MultiObjectiveHandling" in i[0]:
                 self.mo_handling_surrogate_type = list(i[1]["SurrogateType"])[0]
 
         surrogate_types = []
-        for key, description in model_description[1].items():
+        for key, description in model_description.items():
             if "Surrogate" in key:
                 surrogate_types.append(description)
 
@@ -53,14 +53,13 @@ class Model:
                     #surrogate = self.surrogate_orchestrator.get_surrogate(s, region, {o_name: objectives[o_name]})
                     surrogate = SurrogateOrchestrator(s, region, {o_name: objectives[o_name]},
                                                       vp="Surrogate_" + str(i), identifiers=[self.model_name])
-                    print("Added surrogate", i, self.model_name)
                     self.mapping_surrogate_objective[surrogate] = {o_name: objectives[o_name]}
                 #i += 1
             
             for i, s in enumerate(surrogate_types):
                 #surrogate = self.surrogate_orchestrator.get_surrogate(s, region, objectives)
                 surrogate = SurrogateOrchestrator(s, region, objectives, vp="Surrogate_" + str(i), identifiers=[self.model_name])
-                print("Added surrogate (down here)", i, self.model_name)
+                
                 if surrogate.get().multi_objective:
                     self.mapping_surrogate_objective[surrogate] = objectives
 
@@ -73,7 +72,7 @@ class Model:
         #self.optimizer_orchestrator = OptimizerOrchestrator()
 
         optimizer_types = []
-        for key, description in model_description[1].items():
+        for key, description in model_description.items():
             if "Optimizer" in key:
                 optimizer_types.append(description)
 
@@ -91,7 +90,7 @@ class Model:
 
         # validator
         #self.validator_orchestrator = ValidatorOrchestrator()
-        validator_description = model_description[1]["Validator"]
+        validator_description = model_description["Validator"]
         
         self.external_validator_orchestrator = None
         self.internal_validator_orchestrator = None
@@ -102,7 +101,7 @@ class Model:
                 self.internal_validator_orchestrator = ValidatorOrchestrator(validator_description[k], region, objectives)
 
         # candidate selector
-        candidate_selector_description = model_description[1]["CandidateSelector"]
+        candidate_selector_description = model_description["CandidateSelector"]
         self.candidate_selector_orchestrator = CandidateSelectorOrchestrator(candidate_selector_description)
         
         #self.candidate_selector = self.candidate_selector_orchestrator.get_candidate_selector(candidate_selector_description)

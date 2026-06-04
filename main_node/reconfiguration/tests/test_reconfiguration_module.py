@@ -10,6 +10,8 @@ from configuration_selection.model.optimizer.moea import MOEA
 from configuration_selection.model.optimizer.random_search import RandomSearch
 from configuration_selection.model.surrogate.tree_parzen_estimator import TreeParzenEstimator
 from configuration_selection.model.surrogate.model_mock import ModelMock
+from configuration_selection.model.candidate_selector.best_multi_point import BestMultiPoint
+from configuration_selection.model.candidate_selector.random_multi_point import RandomMultiPoint
 
 class TestReconfigurationModule:
     
@@ -58,7 +60,7 @@ class TestReconfigurationModule:
         cs = reconf_module.configuration_selection
 
         # Test before
-        model = cs.predictor.get().mapping_region_model.popitem()[1]
+        model = cs.predictor.get().mapping_region_model.popitem()[1].get()
         assert isinstance(model, Model)
         for so in model.mapping_surrogate_objective.keys():
             assert isinstance(so.get(), TreeParzenEstimator)
@@ -93,7 +95,7 @@ class TestReconfigurationModule:
         # Assert that config was loaded correctly
         assert len(cs.predictor.get().mapping_region_model) == 1
 
-        model = cs.predictor.get().mapping_region_model.popitem()[1]
+        model = cs.predictor.get().mapping_region_model.popitem()[1].get()
         assert len(model.mapping_optimizer_objective) == 5
         
         assert all([isinstance(optimizer.get(), MOEA) for optimizer in list(model.mapping_optimizer_objective.keys())])
@@ -133,7 +135,7 @@ class TestReconfigurationModule:
         # Assert that config was loaded correctly
         assert len(cs.predictor.get().mapping_region_model) == 3
 
-        model_ones = [model for model in cs.predictor.get().mapping_region_model.values() if model.model_name == "Model_1"]
+        model_ones = [model.get() for model in cs.predictor.get().mapping_region_model.values() if model.model_name == "Model_1"]
         assert len(model_ones) == 2
 
         surrogate_types = ["LinearRegression", "GradientBoostingRegressor", "BayesianRidgeRegression", "ModelMock"]
@@ -155,3 +157,72 @@ class TestReconfigurationModule:
         for model in model_ones:
             for s in list(model.mapping_surrogate_objective.keys()):
                 assert s.get().feature_name in surrogate_types
+    
+    def test_change_single_model(self, get_experiment):
+        """Test to change a single model"""
+        reconf_module = self._get_reconf_module(get_experiment, experiment_num=8)
+        cs = reconf_module.configuration_selection
+        
+        assert len(cs.predictor.get().mapping_region_model) == 3
+
+        # Model 0 has best multi point as candidate selector other model has random
+        assert any([isinstance(model.get().candidate_selector_orchestrator.get(), BestMultiPoint) for model in cs.predictor.get().mapping_region_model.values()])
+        assert any([isinstance(model.get().candidate_selector_orchestrator.get(), RandomMultiPoint) for model in cs.predictor.get().mapping_region_model.values()])
+
+        # Change Model 1
+        desc = {
+            "MultiObjectiveHandling": {
+                    "SurrogateType": {
+                        "Scalar": {}
+                    }
+                },
+                "Surrogate": {
+                    "ValueTransformers": {
+                        "ValueScalarizator": {
+                            "WeightedSum": {
+                                "Weights": [1, 2],
+                                "Type": "weighted_sum"
+                            }
+                        }
+                    },
+                    "Instance": {
+                        "MultiArmedBandit": {
+                            "MultiObjective": False,
+                            "CType": "std",
+                            "CFloat": 1.0,
+                            "Parameters": {
+                                "c": "std"
+                            },
+                            "Type": "multi_armed_bandit"
+                        }
+                    }
+                },
+                "Optimizer": {
+                    "Instance": {
+                        "RandomSearch": {
+                            "SamplingSize": 500,
+                            "MultiObjective": True,
+                            "Type": "random_search"
+                        }
+                    }
+                },
+                "Validator": {
+                    "ExternalValidator": {
+                        "MockValidator": {
+                            "Type": "mock_validator"
+                        }
+                    }
+                },
+                "CandidateSelector": {
+                    "BestMultiPointProposal": {
+                        "NumberOfPoints": 1,
+                        "Type": "best_multi_point"
+                    }
+                }
+        }
+        reconf_module.change_variant("Model_1", desc)
+        reconf_module.done().reconfigure()
+
+        # Assert that the change worked
+        assert len(cs.predictor.get().mapping_region_model) == 3
+        assert all([isinstance(model.get().candidate_selector_orchestrator.get(), BestMultiPoint) for model in cs.predictor.get().mapping_region_model.values()])

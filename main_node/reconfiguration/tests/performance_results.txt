@@ -97,3 +97,9 @@ Time: 10.71515946099862 seconds
 --- surrogate ---
 Changes: 400
 Time: 11.18518904800112 seconds
+--- single_surrogate ---
+Changes: 2
+Time: 2.478682769000443 seconds
+--- single_surrogate ---
+Changes: 200
+Time: 273.7592299179996 seconds
