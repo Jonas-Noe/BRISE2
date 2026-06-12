@@ -1,10 +1,15 @@
 import os
 import json
 import time
+import requests
+import hashlib
+import csv
 
 from copy import deepcopy
 
 from tools.initial_config import load_experiment_setup
+
+WEB_HOOK = "https://discord.com/api/webhooks/1514582655004315808/Hfkak8lGRcIMBrZDY4eiCERZnm4bMH5PUsps-yyMaM1V6pRq6Ec56qB7brruQqS60wp5"
 
 class Runner:
 
@@ -27,6 +32,22 @@ class Runner:
         else:
             print("Unable to update Experiment Description: Read-only property.")
 
+    def send_msg(self, msg, title="Benchmark Update"):
+        data = {
+            "username" : "BRISE Webhook",
+            "embeds": [
+                {
+                    "description" : msg,
+                    "title" : title
+                }
+            ]
+        }
+
+        try:
+            requests.post(WEB_HOOK, json=data)
+        except Exception:
+            pass
+
     def execute_experiment(self, description, number_of_repetitions=1):
         # Write to file
         with open("temp_exp.json", "w", encoding="utf-8") as file:
@@ -41,7 +62,22 @@ class Runner:
                 self.error_count += 1
 
                 os.remove("temp_exp.json")
+                self.send_msg("Ein Experiment ist fehlgeschlagen!", title="Benchmark fehlgeschlagen!")
                 exit()
+
+            # Send result
+            ed_id = hashlib.sha1(json.dumps(description, sort_keys=True).encode("utf-8")).hexdigest()
+            name = f"exp_{description['Context']['TaskConfiguration']['TaskName']}_{ed_id}"
+
+            with open("./Results/" + name + ".csv", "r", encoding="utf-8") as file:
+                reader = csv.DictReader(file)
+                for content in reader:
+                    msg = "Execution Time: " + content["execution time"] + "\n" +\
+                            "Reconfigurations:" + content["reconfigurations"] + "\n" +\
+                            "Repetitions: " + content["number of repetitions"] + "\n" +\
+                            "Reconfiguration Actions:" + content["reconfiguration_actions"]
+                    self.send_msg(msg, title="Benchmark Result")
+                    break
 
         print("Clean up")
         os.remove("temp_exp.json")
@@ -533,8 +569,11 @@ class Runner:
                        (experiment_description_2, [reconf_single_surrogate])]
 
         for experiment_description, reconf_skeletons in reconf_data:
+            self.send_msg("Starte mit der Description:\n" + str(experiment_description))
             for reconf_skeleton in reconf_skeletons:
+                self.send_msg("Starte mit Benchmark:\n" + str(reconf_skeleton))
                 for s in scalings:
+                    self.send_msg("Starte Skalierung: " + str(s))
                     # Update how often the reconfiguration occurs
                     new_amount = int(config_amount / s) if s != 1 else int(config_amount / 2)
                     reconf_skeleton["Reconfiguration"]["AfterXConfigurations"]["amount"] = new_amount
@@ -552,7 +591,8 @@ class Runner:
         return self.counter
 
 if __name__ == "__main__":
-    runner = Runner()
+    runner = Runner()    
     runner.clear_results()
     runner.dynamic_reconf_scaling_benchmark()
     runner.show_results()
+    runner.send_msg("Der Benchmark wurde erfolgreich beendet!", title="Benchmark beendet")
