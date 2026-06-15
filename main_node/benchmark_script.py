@@ -9,7 +9,7 @@ from copy import deepcopy
 
 from tools.initial_config import load_experiment_setup
 
-WEB_HOOK = "https://discord.com/api/webhooks/1514582655004315808/Hfkak8lGRcIMBrZDY4eiCERZnm4bMH5PUsps-yyMaM1V6pRq6Ec56qB7brruQqS60wp5"
+WEB_HOOK = os.environ.get("WEB_HOOK")
 
 class Runner:
 
