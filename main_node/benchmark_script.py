@@ -7,6 +7,7 @@ import csv
 from copy import deepcopy
 
 from tools.initial_config import load_experiment_setup
+from tools.mongo_dao import MongoDB
 
 WEB_HOOK = os.environ.get("WEB_HOOK")
 
@@ -19,6 +20,14 @@ class Runner:
         self.counter = 0 # Mocked
         self.error_count = 0
         self.distinct_experiements = 0
+
+        self.database = MongoDB(
+            os.getenv("BRISE_DATABASE_HOST"),
+            int(os.getenv("BRISE_DATABASE_PORT")),
+            os.getenv("BRISE_DATABASE_NAME"),
+            os.getenv("BRISE_DATABASE_USER"),
+            os.getenv("BRISE_DATABASE_PASS")
+        )
 
     @property
     def base_experiment_description(self):
@@ -80,6 +89,10 @@ class Runner:
 
         print("Clean up")
         os.remove("temp_exp.json")
+
+        # To avoid crashes when too many configurations are stored
+        print("Cleanup database...")
+        self.database.client.drop_database(os.getenv("BRISE_DATABASE_HOST"))
 
     def save_result(self, experiement_name):
         pass
