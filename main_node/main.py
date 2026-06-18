@@ -81,7 +81,7 @@ class MainThread(threading.Thread):
             if len(argv) > 1:
                 exp_desc_file_path = argv[1]
             else:
-                exp_desc_file_path = './Resources/Mock/MockExperiment.json'
+                exp_desc_file_path = './Resources/EnergyExperiment/EnergyExperiment.json'
                 log_msg = f"The Experiment Setup was not provided and the path to an experiment file was not specified." \
                           f" The default one will be executed: {exp_desc_file_path}"
                 self.logger.warning(log_msg)
@@ -98,7 +98,7 @@ class MainThread(threading.Thread):
         # self.experiment_id = self.experiment.unique_id
         # search_space.experiment_id = self.experiment_id
         Configuration.set_task_config(self.experiment.description["Context"]["TaskConfiguration"])
-
+        
         # initialize connection to rabbitmq service
         self.connection = pika.BlockingConnection(
             pika.ConnectionParameters(
