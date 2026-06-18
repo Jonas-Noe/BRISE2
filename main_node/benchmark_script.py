@@ -1,6 +1,5 @@
 import os
 import json
-import time
 import requests
 import hashlib
 import csv
@@ -641,7 +640,6 @@ class Runner:
                     print("PeformAmount:", reconf_skeleton["Reconfiguration"]["AfterXConfigurations"].get("performAmount"))
                     print("")
                     
-                    #time.sleep(1)
                     experiment_description.update(deepcopy(reconf_skeleton))
                     self.execute_experiment(experiment_description, number_of_repetitions=exp_rep_amount)
 
