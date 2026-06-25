@@ -7,6 +7,7 @@ import csv
 from copy import deepcopy
 
 from tools.initial_config import load_experiment_setup
+from tools.mongo_dao import MongoDB
 
 WEB_HOOK = os.environ.get("WEB_HOOK")
 
@@ -19,6 +20,14 @@ class Runner:
         self.counter = 0 # Mocked
         self.error_count = 0
         self.distinct_experiements = 0
+
+        self.database = MongoDB(
+            os.getenv("BRISE_DATABASE_HOST"),
+            int(os.getenv("BRISE_DATABASE_PORT")),
+            os.getenv("BRISE_DATABASE_NAME"),
+            os.getenv("BRISE_DATABASE_USER"),
+            os.getenv("BRISE_DATABASE_PASS")
+        )
 
     @property
     def base_experiment_description(self):
@@ -80,6 +89,10 @@ class Runner:
 
         print("Clean up")
         os.remove("temp_exp.json")
+
+        # To avoid crashes when too many configurations are stored
+        print("Cleanup database...")
+        self.database.client.drop_database(os.getenv("BRISE_DATABASE_HOST"))
 
     def save_result(self, experiement_name):
         pass
@@ -584,6 +597,182 @@ class Runner:
             }
         }
 
+        reconf_model_multi_surrogates = {
+            "Reconfiguration": {
+                "AfterXConfigurations": {
+                    "amount": 1,
+                    "performAmount": 1,
+                    "vp": "Model_1",
+                    "description": {
+                        "MultiObjectiveHandling": {
+                            "SurrogateType": {
+                                "Portfolio": {}
+                            }
+                        },
+                        "Optimizer": {
+                            "Instance": {
+                                "RandomSearch": {
+                                    "SamplingSize": 500,
+                                    "MultiObjective": True,
+                                    "Type": "random_search"
+                                }
+                            }
+                        },
+                        "Validator": {
+                            "ExternalValidator": {
+                                "QualityValidator": {
+                                    "Split": {
+                                        "HoldOut": {
+                                            "TrainingSet": 0.5
+                                        }
+                                    },
+                                    "QualityThreshold": -10000,
+                                    "Type": "quality_validator"
+                                }
+                            },
+                            "InternalValidator": {
+                                "QualityValidator": {
+                                    "Split": {
+                                        "KFold": {
+                                            "NumberOfFolds": 4
+                                        }
+                                    },
+                                    "QualityThreshold": -10000,
+                                    "Type": "quality_validator"
+                                }
+                            }
+                        },
+                        "CandidateSelector": {
+                            "RandomMultiPointProposal": {
+                                "NumberOfPoints": 1,
+                                "Type": "random_multi_point"
+                            }
+                        },
+                        "Surrogate_0": {
+                            "ConfigurationTransformers": {
+                                "OrdinalTransformer": {
+                                    "SklearnOrdinalEncoder": {
+                                        "Type": "sklearn_ordinal_transformer",
+                                        "Class": "sklearn.OrdinalEncoder"
+                                    }
+                                },
+                                "NominalTransformer": {
+                                    "BinaryEncoder": {
+                                        "Type": "binary_transformer",
+                                        "Class": "brise.BinaryEncoder"
+                                    }
+                                },
+                                "IntegerTransformer": {
+                                    "SklearnIntMinMaxScaler": {
+                                        "Type": "sklearn_integer_transformer",
+                                        "Class": "sklearn.MinMaxScaler"
+                                    }
+                                },
+                                "FloatTransformer": {
+                                    "SklearnFloatMinMaxScaler": {
+                                        "Type": "sklearn_float_transformer",
+                                        "Class": "sklearn.MinMaxScaler"
+                                    }
+                                }
+                            },
+                            "Instance": {
+                                "LinearRegression": {
+                                    "MultiObjective": False,
+                                    "Type": "sklearn_model_wrapper",
+                                    "Class": "sklearn.linear_model.LinearRegression"
+                                }
+                            }
+                        },
+                        "Surrogate_1": {
+                            "ConfigurationTransformers": {
+                                "OrdinalTransformer": {
+                                    "SklearnOrdinalEncoder": {
+                                        "Type": "sklearn_ordinal_transformer",
+                                        "Class": "sklearn.OrdinalEncoder"
+                                    }
+                                },
+                                "NominalTransformer": {
+                                    "BinaryEncoder": {
+                                        "Type": "binary_transformer",
+                                        "Class": "brise.BinaryEncoder"
+                                    }
+                                },
+                                "IntegerTransformer": {
+                                    "SklearnIntMinMaxScaler": {
+                                        "Type": "sklearn_integer_transformer",
+                                        "Class": "sklearn.MinMaxScaler"
+                                    }
+                                },
+                                "FloatTransformer": {
+                                    "SklearnFloatMinMaxScaler": {
+                                        "Type": "sklearn_float_transformer",
+                                        "Class": "sklearn.MinMaxScaler"
+                                    }
+                                }
+                            },
+                            "Instance": {
+                                "GradientBoostingRegressor": {
+                                    "MultiObjective": False,
+                                    "Parameters": {
+                                        "n_estimators": 4
+                                    },
+                                    "Type": "sklearn_model_wrapper",
+                                    "Class": "sklearn.ensemble.GradientBoostingRegressor"
+                                }
+                            }
+                        },
+                        "Surrogate_2": {
+                            "ConfigurationTransformers": {
+                                "OrdinalTransformer": {
+                                    "SklearnOrdinalEncoder": {
+                                        "Type": "sklearn_ordinal_transformer",
+                                        "Class": "sklearn.OrdinalEncoder"
+                                    }
+                                },
+                                "NominalTransformer": {
+                                    "BinaryEncoder": {
+                                        "Type": "binary_transformer",
+                                        "Class": "brise.BinaryEncoder"
+                                    }
+                                },
+                                "IntegerTransformer": {
+                                    "SklearnIntMinMaxScaler": {
+                                        "Type": "sklearn_integer_transformer",
+                                        "Class": "sklearn.MinMaxScaler"
+                                    }
+                                },
+                                "FloatTransformer": {
+                                    "SklearnFloatMinMaxScaler": {
+                                        "Type": "sklearn_float_transformer",
+                                        "Class": "sklearn.MinMaxScaler"
+                                    }
+                                }
+                            },
+                            "Instance": {
+                                "BayesianRidgeRegression": {
+                                    "MultiObjective": False,
+                                    "Parameters": {
+                                        "max_iter": 10,
+                                        "tol": 1.0
+                                    },
+                                    "Type": "sklearn_model_wrapper",
+                                    "Class": "sklearn.linear_model.BayesianRidge"
+                                }
+                            }
+                        },
+                        "Surrogate_3": {
+                            "Instance": {
+                                "ModelMock": {
+                                    "MultiObjective": True,
+                                    "Type": "model_mock"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         quanity_based_stop = {"StopCondition": {
                 "Instance": {
                     "QuantityBasedSC": {
@@ -622,7 +811,7 @@ class Runner:
 
         # Data structure to define which descriptions are used to test what scalings
         reconf_data = [(experiment_description_1, [reconf_sampling_strategy, reconf_candidate, reconf_model]),
-                       (experiment_description_2, [reconf_single_surrogate])]
+                       (experiment_description_2, [reconf_single_surrogate, reconf_model_multi_surrogates])]
 
         for experiment_description, reconf_skeletons in reconf_data:
             self.send_msg("Starte mit der Description:\n" + str(experiment_description))
