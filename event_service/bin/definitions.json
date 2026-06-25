@@ -1,5 +1,5 @@
 {
-  "rabbit_version": "4.2.5",
+  "rabbit_version": "3.8.9",
   "users": [
     {
       "name": "guest",
@@ -25,13 +25,6 @@
   "parameters": [],
   "policies": [],
   "queues": [
-    {
-      "name": "events-v1",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
     {
       "name": "front_log_queue",
       "vhost": "/",
@@ -160,6 +153,7 @@
     }
   ],
   "exchanges": [
+
     {
       "name": "experiment_termination_exchange",
       "vhost": "/",
@@ -169,6 +163,7 @@
       "internal": false,
       "arguments": {}
     },
+
     {
       "name": "task_result_exchange",
       "vhost": "/",
