@@ -143,12 +143,16 @@ up() {
         done
   elif [[ "${mode}" == "test" ]]; then
         log "Building and deploying TEST-BRISE to docker-compose."
-        services=("mongo-db-test")
-        docker compose build --build-arg BRISE_DATABASE_HOST=$( cat deployment_settings/TestDeployment.json | jq -r '.Database.Address' ) \
+        services=("mongo-db-test" "main-node")
+        docker compose build --build-arg BRISE_EVENT_SERVICE_HOST=$( cat deployment_settings/LocalDeployment.json | jq -r '.EventService.Address' ) \
+                             --build-arg BRISE_EVENT_SERVICE_AMQP_PORT=$( cat deployment_settings/LocalDeployment.json | jq -r '.EventService.AMQTPort' )\
+                             --build-arg BRISE_EVENT_SERVICE_GUI_PORT=$( cat deployment_settings/LocalDeployment.json | jq -r '.EventService.GUIPort' )\
+                             --build-arg BRISE_DATABASE_HOST=$( cat deployment_settings/TestDeployment.json | jq -r '.Database.Address' ) \
                              --build-arg BRISE_DATABASE_PORT=$( cat deployment_settings/TestDeployment.json | jq -r '.Database.Port' ) \
                              --build-arg BRISE_DATABASE_NAME=$( cat deployment_settings/TestDeployment.json | jq -r '.Database.DatabaseName' ) \
                              --build-arg BRISE_DATABASE_USER=$( cat deployment_settings/TestDeployment.json | jq -r '.Database.DatabaseUser' ) \
                              --build-arg BRISE_DATABASE_PASS=$( cat deployment_settings/TestDeployment.json | jq -r '.Database.DatabasePass' ) \
+                             --build-arg TEST_MODE=UNIT_TEST \
                               ${services[*]}
         log "Starting ${services[*]}"
         docker compose up -d ${services[*]}
