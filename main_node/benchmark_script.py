@@ -807,11 +807,14 @@ class Runner:
         self._base_experiment_description, self._base_search_space = \
             load_experiment_setup("./Resources/tests/test_cases_product_configurations/test_case_8.json")
         experiment_description_2 = self.base_experiment_description
+        experiment_description_2["ConfigurationSelection"]["Predictor"]["Model_1"]["MultiObjectiveHandling"]["SurrogateType"] = {"DynamicCompositional": {}}
         experiment_description_2.update(deepcopy(quanity_based_stop))
 
         # Data structure to define which descriptions are used to test what scalings
         reconf_data = [(experiment_description_1, [reconf_sampling_strategy, reconf_candidate, reconf_model]),
                        (experiment_description_2, [reconf_single_surrogate, reconf_model_multi_surrogates])]
+        
+        reconf_data = [(experiment_description_2, [reconf_single_surrogate, reconf_model_multi_surrogates])]
 
         for experiment_description, reconf_skeletons in reconf_data:
             self.send_msg("Starte mit der Description:\n" + str(experiment_description))
