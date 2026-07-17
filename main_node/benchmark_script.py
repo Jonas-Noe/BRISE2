@@ -505,7 +505,7 @@ class Runner:
                     "amount": 1,
                     "performAmount": 1,
                     "vp": "SamplingStrategy",
-                    "description": {"Sobol": {"Seed": 1, "Type": "sobol"}}
+                    "description": {"MersenneTwister": {"Seed": 1, "Type": "mersenne_twister"}}
                 }
             }
         }
@@ -814,7 +814,7 @@ class Runner:
         reconf_data = [(experiment_description_1, [reconf_sampling_strategy, reconf_candidate, reconf_model]),
                        (experiment_description_2, [reconf_single_surrogate, reconf_model_multi_surrogates])]
         
-        reconf_data = [(experiment_description_2, [reconf_single_surrogate, reconf_model_multi_surrogates])]
+        reconf_data = [(experiment_description_1, [reconf_sampling_strategy])]
 
         for experiment_description, reconf_skeletons in reconf_data:
             self.send_msg("Starte mit der Description:\n" + str(experiment_description))
