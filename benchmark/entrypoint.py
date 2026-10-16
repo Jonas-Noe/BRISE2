@@ -17,14 +17,12 @@ def run_benchmark():
         runner = BRISEBenchmarkRunner(host_event_service, port_event_service, results_storage)
         try:
             # ---    Add User defined benchmark scenarios execution below  ---#
-            # --- Possible variants: benchmark_test, fill_db ---#
-            #runner.fill_db()
-            #runner.dynamic_reconf_stresstest()
-            #runner.dynamic_reconf_scaling_benchmark()
+            # --- Possible variants: benchmark_test, fill_db, benchmark_distribution_modes ---#
+            runner.fill_db()
 
             # --- Helper method to move outdated experiments from `./results` folder ---#
-            runner.move_redundant_experiments(location=runner.results_storage + "repeater_outdated/")
-            
+            runner.move_redundant_experiments(location=runner.results_storage + "outdated/")
+
             # ---   Add User defined benchmark scenarios execution above   ---#
         except Exception as exception:
             logging.error("The Benchmarking process interrupted by an exception: %s" % exception, exc_info=True)
