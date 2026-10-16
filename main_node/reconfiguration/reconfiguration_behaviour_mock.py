@@ -5,6 +5,10 @@ from reconfiguration.reconfiguration_module import ReconfigurationModule
 from stop_condition.stop_condition_selector import StopConditionSelector
 from stop_condition.time_based import TimeBased
 
+from configuration_selection.configuration_selection import ConfigurationSelection
+
+import time
+
 class ReconfigurationBehaviourMock:
     """This class handles the reconfiguration requests that are speficied/mocked in the experiment description
     
@@ -18,10 +22,10 @@ class ReconfigurationBehaviourMock:
     - performAmount (int): How often the action will be performed
     """
 
-    def __init__(self, reconf_module:ReconfigurationModule):
+    def __init__(self, reconf_module:ReconfigurationModule, cs:ConfigurationSelection):
         self.reconf_module = reconf_module
         self._experiment = reconf_module.experiment
-        self._cs = reconf_module.configuration_selection
+        self._cs = cs
 
         self._reconfigurations = None
         if "Reconfiguration" in self.reconf_module.experiment.description:
@@ -64,6 +68,7 @@ class ReconfigurationBehaviourMock:
             if self._reconf_actions[trigger.split("_")[0]](action) is True:
                 self.__perform_action(action)
                 self.logger.info("Performed reconfiguration action: %s", action)
+                time.sleep(1)
 
         # Finish the reconfiguration process if any change was requested
         if self.reconf_module.unfinished_configuration():
@@ -98,7 +103,7 @@ class ReconfigurationBehaviourMock:
         if "vp" in action:
             self.reconf_module.change_variant(action["vp"], desc, identifiers)
         elif "variables" in action:
-            self.reconf_module.change_variables(action["variables", desc, identifiers])
+            self.reconf_module.change_variables(action["variables"], desc)
         else:
             self.logger.error("Action can not be performed neither \"vp\" nor \"variables\" key was specified! Action: %s", action)
 

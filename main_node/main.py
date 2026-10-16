@@ -27,6 +27,8 @@ from WorkerServiceClient.WSClient_events import WSClient
 
 from reconfiguration.reconfiguration_module import ReconfigurationModule
 from reconfiguration.reconfiguration_behaviour_mock import ReconfigurationBehaviourMock
+from reconfiguration.reconfiguration_monitor import ReconfigurationMonitor
+from reconfiguration.monitorable import Monitorable
 
 logging.getLogger("pika").setLevel(logging.WARNING)
 
@@ -82,6 +84,7 @@ class MainThread(threading.Thread):
                 exp_desc_file_path = argv[1]
             else:
                 exp_desc_file_path = './Resources/EnergyExperiment/EnergyExperiment.json'
+                exp_desc_file_path = './Resources/tests/test_cases_product_configurations/monitor_test.json'
                 log_msg = f"The Experiment Setup was not provided and the path to an experiment file was not specified." \
                           f" The default one will be executed: {exp_desc_file_path}"
                 self.logger.warning(log_msg)
@@ -95,6 +98,8 @@ class MainThread(threading.Thread):
 
         # Initializing instance of Experiment - main data holder.
         self.experiment = Experiment(experiment_description, search_space)
+        Monitorable.experiment_id = self.experiment.unique_id # Set the experiment_id for sending via queue
+
         # self.experiment_id = self.experiment.unique_id
         # search_space.experiment_id = self.experiment_id
         Configuration.set_task_config(self.experiment.description["Context"]["TaskConfiguration"])
@@ -158,7 +163,8 @@ class MainThread(threading.Thread):
 
         # Create reconfiguration module
         self.reconf = ReconfigurationModule(self.experiment)
-        self.behaviour_mock = ReconfigurationBehaviourMock(self.reconf)
+        self.behaviour_mock = ReconfigurationBehaviourMock(self.reconf, self.configuration_selection)
+        self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
@@ -281,7 +287,7 @@ class MainThread(threading.Thread):
                           'stop_experiment_exchange', 'check_stop_condition_expression_exchange', 'logging_exchange',
                           'get_worker_capacity_exchange', 'get_new_configuration_exchange',
                           'measure_new_configuration_exchange', 'process_tasks_exchange', 'experiment_api_exchange',
-                          'reconfiguration_exchange']
+                          'reconfiguration_exchange', 'reconf_monitor_events']
         for exchange in self.exchanges:
             queue_name = exchange + self.experiment.unique_id
             result = self.consume_channel.queue_declare(queue=queue_name)

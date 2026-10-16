@@ -16,8 +16,9 @@ from configuration_selection.model.candidate_selector.candidate_selector_orchest
 from configuration_selection.model.surrogate.composite_surrogate import CompositeSurrogate
 
 from reconfiguration.effector import Effector
+from reconfiguration.monitorable import Monitorable
 
-class Model:
+class Model(Monitorable):
     def __init__(self, model_name:str, model_description: dict, region: Tuple, objectives: Dict):
         self.model_name = model_name
         self.region = region

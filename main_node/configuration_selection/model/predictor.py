@@ -13,8 +13,9 @@ from tools.mongo_dao import MongoDB
 from configuration_selection.model.model import Model
 
 from reconfiguration.effector import Effector
+from reconfiguration.monitorable import Monitorable
 
-class Predictor:
+class Predictor(Monitorable):
     """
     This class abstract notion of prediction within tree-shaped search space from the underlying models.
     The underlying models see only the current level with related data that is going to be operated in it,
@@ -70,6 +71,7 @@ class Predictor:
                                  (description, r))
             self.mapping_region_sampling_strategy[r] = sampling_strategy
 
+    #@Monitorable.monitor_runtime("predict_runtime")
     def predict(self, measured_configurations: List[Configuration], sample: bool = False) -> List[Configuration]:
         """
         Predict or sample one or multiple configurations
