@@ -129,5 +129,11 @@
             "variables": "Predictor",
             "description": {"WindowSize": 0.6}
         }
+    },
+    
+    "DistributionMode": {
+        "AsynchronousDistribution": {
+            "Type": "asynchronous_distribution"
+        }
     }
 }
