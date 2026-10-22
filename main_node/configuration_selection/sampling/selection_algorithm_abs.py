@@ -10,8 +10,9 @@ from typing import Tuple
 
 from core_entities.search_space import Hyperparameter
 
+from reconfiguration.monitoring.monitorable import MonitorableABC
 
-class SamplingStrategy(ABC):
+class SamplingStrategy(MonitorableABC):
 
     def __init__(self, parameters: Mapping, region: Tuple[Hyperparameter]):
         """
@@ -22,6 +23,8 @@ class SamplingStrategy(ABC):
         self.parameters = parameters  # internal parameters
         self.region = region
         self.names = [r.name for r in self.region]
+
+        super().__init__()
 
     @abstractmethod
     def sample(self) -> pd.DataFrame:

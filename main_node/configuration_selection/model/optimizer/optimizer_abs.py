@@ -8,8 +8,9 @@ from configuration_selection.model.configuration_transformer.configuration_trans
 from configuration_selection.model.surrogate.surrogate_abs import Surrogate
 from core_entities.search_space import Hyperparameter
 
+from reconfiguration.monitoring.monitorable import MonitorableABC
 
-class Optimizer(ABC):
+class Optimizer(MonitorableABC):
     def __init__(self, optimizer_description: Dict, region: Tuple, objectives: Dict):
         self.region = region
         self.objectives = objectives
@@ -38,6 +39,8 @@ class Optimizer(ABC):
                         self.scalarized = True
                     value_transformer = self.value_transformer_orchestrator.get_value_transformer(vt, objectives)
                     self.value_transformers.append(value_transformer)
+
+        super().__init__()
 
     @abstractmethod
     def optimize(self, surrogate: Surrogate) -> pd.DataFrame:

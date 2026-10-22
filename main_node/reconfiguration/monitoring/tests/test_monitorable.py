@@ -1,13 +1,17 @@
 import pytest
 
-from reconfiguration.monitorable import Monitorable
+from reconfiguration.monitoring.monitorable import Monitorable
 
 class TestMonitorable:
 
-    class TestObj(Monitorable):
+    class MonitorObj(Monitorable):
         def __init__(self):
             self.name = "John"
             self.age = 20
+
+            super().__init__()
+
+            self.send_events = []
 
         def change(self):
             self.name = "Marry"
@@ -29,17 +33,20 @@ class TestMonitorable:
 
             self.do_heavy_work()
 
+        # Altered publish method for testing
+        def publish_event(self, event):
+            self.send_events.append(event)
+
     @pytest.fixture
     def monitored_object(self):
-        o = self.TestObj()
-        self._hook_publish_events(o)
+        o = self.MonitorObj()
 
         Monitorable.experiment_id = ""
         Monitorable.active = True
 
         return o
 
-    def test_monitorable_activation(self, monitored_object:TestObj):
+    def test_monitorable_activation(self, monitored_object:MonitorObj):
         """Test that the active value deactiveates the monitorable objects"""
         Monitorable.active = False
         monitored_object.change()
@@ -48,20 +55,24 @@ class TestMonitorable:
 
     def test_experiement_set_check(self):
         """Test that an exception is raised if the experiement is not set"""
-        t = self.TestObj()
-        Monitorable.active = True
+        class Test(Monitorable):
+            def __init__(self):
+                super().__init__()
 
+        t = Test()
+        Monitorable.active = True
+        
         with pytest.raises(Exception):
             t.change()
 
-    def test_attribute_monitoring(self, monitored_object:TestObj):
+    def test_attribute_monitoring(self, monitored_object:MonitorObj):
         "Test that class attribute changes are detected"
         monitored_object.change()
 
         assert_event({"attr": "name", "value": "Marry"}, monitored_object)
         assert_event({"attr": "age", "value": 22}, monitored_object)
 
-    def test_monitor_runtime_monitoring(self, monitored_object:TestObj):
+    def test_monitor_runtime_monitoring(self, monitored_object:MonitorObj):
         """Test the different runtime monitoring options"""
         # Test method with decorator
         monitored_object.runtime_monitored_method()
@@ -69,7 +80,6 @@ class TestMonitorable:
         assert_event({
             "type": "func_runtime",
             "func_name": "runtime_monitored_method",
-            "object": str(monitored_object)
         }, monitored_object)
 
         # Test partly
@@ -77,14 +87,30 @@ class TestMonitorable:
         assert_event({
             "type": "runtime",
             "name": "partly",
-            "object": str(monitored_object)
         }, monitored_object)
 
-    def _hook_publish_events(self, monitorable:Monitorable):
-        """Changes the `publish_event` method to just saveing the events for later checking."""
-        monitorable.send_events = []
-        monitorable.publish_event = lambda event, monitorable=monitorable:\
-            monitorable.send_events.append(event)
+    def test_instance_creation(self, monitored_object:MonitorObj):
+        """Test that new instances call their init method and instances get saved"""
+        class Test(Monitorable):
+            def __init__(self):
+                super().__init__()
+
+        t = Test()
+
+        assert t in Monitorable.instances # Assert instance was saved
+        assert monitored_object in Monitorable.instances
+
+    def test_get_attributes(self, monitored_object:MonitorObj):
+        """Test the get_attributes method"""
+        attributes = monitored_object.get_attributes()
+
+        assert len(attributes.keys()) == 3 # 2 + 1 (for send_events)
+
+        assert "name" in attributes
+        assert "age" in attributes
+
+        assert attributes["name"] == "John"
+        assert attributes["age"] == 20
 
 def assert_event(event:dict, monitorable:Monitorable, not_send:bool=False):
     """Helper method to assert that a special event was send.
@@ -93,7 +119,7 @@ def assert_event(event:dict, monitorable:Monitorable, not_send:bool=False):
     Set `not_send` to true for checking that no such event has been send."""
     if not hasattr(monitorable, "send_events"):
         raise Exception("Monitorable object is not hooked for event asserting")
-
+    
     # Check that an event with all keys and values exist
     for e in monitorable.send_events:
         # Match found

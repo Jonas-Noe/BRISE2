@@ -7,8 +7,9 @@ from configuration_selection.model.value_transformer.value_transformer_orchestra
 from configuration_selection.model.configuration_transformer.configuration_transformer_abs import ConfigurationTransformer
 from core_entities.search_space import Hyperparameter
 
+from reconfiguration.monitoring.monitorable import MonitorableABC
 
-class Surrogate(ABC):
+class Surrogate(MonitorableABC):
     def __init__(self, surrogate_description: Dict, region: Tuple, objectives: Dict):
         self.surrogate_instance = None
         self.region = region
@@ -45,6 +46,8 @@ class Surrogate(ABC):
                     self.value_transformers.append(value_transformer)
 
         self.multi_objective = False
+
+        super().__init__()
 
     @abstractmethod
     def create(self, features: pd.DataFrame, labels: pd.DataFrame) -> bool:

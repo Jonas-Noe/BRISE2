@@ -27,8 +27,8 @@ from WorkerServiceClient.WSClient_events import WSClient
 
 from reconfiguration.reconfiguration_module import ReconfigurationModule
 from reconfiguration.reconfiguration_behaviour_mock import ReconfigurationBehaviourMock
-from reconfiguration.reconfiguration_monitor import ReconfigurationMonitor
-from reconfiguration.monitorable import Monitorable
+from reconfiguration.monitoring.reconfiguration_monitor import ReconfigurationMonitor
+from reconfiguration.monitoring.monitorable import Monitorable
 
 logging.getLogger("pika").setLevel(logging.WARNING)
 

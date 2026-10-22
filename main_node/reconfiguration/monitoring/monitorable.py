@@ -1,5 +1,7 @@
 import json
 import time
+from abc import ABCMeta
+
 from tools.rabbitmq_common_tools import publish
 
 class Monitorable:
@@ -8,13 +10,13 @@ class Monitorable:
     experiment_id = None
     active = False
 
-    def __init__(self):
-        self._check_init()
+    instances = [] # Temporarly save instances until there are processed
 
-    def _check_init(self):
-        """Performs the init if necessary in case the subclass did not called super().__init__"""
-        if not hasattr(self, "_runtimes"):
-            self._runtimes = {} # Keeps track of current runtime measurements
+    def __init__(self):
+        self._runtimes = {} # Keeps track of current runtime measurements
+        self._ignore_attributes = ["_ignore_attributes", "_runtimes", "instances", "experiment_id", "active"]
+
+        Monitorable.instances.append(self)            
 
     def __setattr__(self, name, value):
         """Added default behavior to notify on value change. Does not affect lists, dicts, etc."""
@@ -48,8 +50,7 @@ class Monitorable:
                     "type": "func_runtime",
                     "func_name": func.__name__,
                     "time_ms": duration / 1000,
-                    "name": name if name is not None else "",
-                    "object": str(self)
+                    "name": name if name is not None else ""
                 }
         
                 self.publish_event(event)
@@ -59,9 +60,6 @@ class Monitorable:
 
     def start_runtime(self, name:str):
         """Start the a runtime measurement"""
-        # Create dict in case super().__init__ was never called
-        self._check_init()
-
         self._runtimes[name] = time.time()
 
     def stop_runtime(self, name:str):
@@ -73,20 +71,44 @@ class Monitorable:
         event = {
             "type": "runtime",
             "time_ms": duration / 1000,
-            "name": name,
-            "object": str(self)
+            "name": name
         }
 
         del self._runtimes[name]
         self.publish_event(event)
 
-    def publish_event(self, event):
+    def get_attributes(self):
+        """Return a dict with all class attributes for monitoring"""
+        attributes = {}
+        
+        # Find valid attributes to monitor
+        for attr, v in self.__dict__.items():
+            if attr in self._ignore_attributes or callable(v):
+                continue
+
+            attributes[attr] = v
+
+        return attributes
+
+    def publish_event(self, event:dict):
         """Publish a monitor event. (Overwrite for unit tests)"""
         if Monitorable.experiment_id is None:
             raise Exception("experiment_id of this class must be set")
 
         if not Monitorable.active:
             return
+
+        event.update({
+            "obj_id": id(self),
+            "class_name": str(type(self).__name__),
+            "class_str": str(self)
+        })
         
         print("Monitor Event:", event)
         publish("reconf_monitor_events", Monitorable.experiment_id, json.dumps(event))
+
+class MonitorableABC(Monitorable, metaclass=ABCMeta):
+    __slots__ = ()
+
+    def __init__(self):
+        super().__init__()

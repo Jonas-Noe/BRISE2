@@ -13,7 +13,7 @@ from tools.mongo_dao import MongoDB
 from configuration_selection.model.model import Model
 
 from reconfiguration.effector import Effector
-from reconfiguration.monitorable import Monitorable
+from reconfiguration.monitoring.monitorable import Monitorable
 
 class Predictor(Monitorable):
     """
@@ -57,6 +57,8 @@ class Predictor(Monitorable):
         self.hierarchical_models_dumps = []
 
         self.logger = logging.getLogger(__name__)
+
+        super().__init__()
 
     @Effector.effector("Predictor_Values")
     def _init_values(self, description):

@@ -16,7 +16,7 @@ from configuration_selection.model.candidate_selector.candidate_selector_orchest
 from configuration_selection.model.surrogate.composite_surrogate import CompositeSurrogate
 
 from reconfiguration.effector import Effector
-from reconfiguration.monitorable import Monitorable
+from reconfiguration.monitoring.monitorable import Monitorable
 
 class Model(Monitorable):
     def __init__(self, model_name:str, model_description: dict, region: Tuple, objectives: Dict):
@@ -27,6 +27,7 @@ class Model(Monitorable):
         self.surrogate_orchestrator = SurrogateOrchestrator()
 
         self._init_model(model_description, vpoint=model_name)
+        super().__init__()
 
     @Effector.effector("Model") # VP Name definied by vpoint arg!
     def _init_model(self, model_description, vpoint=None, **kwargs):
@@ -163,6 +164,18 @@ class Model(Monitorable):
     def _get_descriptions(self, model_description:dict, type_name:str):
         """Return a list with all descriptions of a special type like Optimizer, Surrogate, etc."""
         return [description for key, description in model_description.items() if type_name in key]
+
+    def get_surrogate_vp(self, surrogate:Surrogate):
+        for vp, l in self._surrogate_map.items():
+            if surrogate in l:
+                return vp
+        return None
+
+    def get_optimizer_vp(self, optimizer:Optimizer):
+        for vp, l in self._optimizer_map.items():
+            if optimizer in l:
+                return vp
+        return None
 
     def predict(self, parameters: List[Hyperparameter], configurations: List[Configuration]) -> pd.DataFrame:
         """
