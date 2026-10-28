@@ -9,6 +9,8 @@ from reconfiguration.monitoring.reconfiguration_monitor import ReconfigurationMo
 from reconfiguration.reconfiguration_module import ReconfigurationModule
 from reconfiguration.effector import Effector
 
+from tools.rabbitmq_common_tools import publish
+
 class TestReconfigurationMonitor:
 
     cs = None
@@ -28,6 +30,9 @@ class TestReconfigurationMonitor:
         os.environ["BRISE_DATABASE_USER"] = "user"
         os.environ["TEST_MODE"] = "UNIT_TEST"
 
+        # TODO: Remove!!!!
+        ReconfigurationMonitor.run_event_service = True
+
         experiment_description, search_space = get_experiment(experiment_num)
         experiment = Experiment(experiment_description, search_space)
         TestReconfigurationMonitor.cs = ConfigurationSelection(experiment) # Save to avoid that effectors are cleared!
@@ -38,4 +43,9 @@ class TestReconfigurationMonitor:
         """Test the processing of created monitored components"""
         #print(reconf_monitor)
         #print(reconf_monitor.monitor_data)
+        assert False
+
+    def test_monitor_exchance_queue(self, reconf_monitor:ReconfigurationMonitor):
+        publish("monitor_exchange", "", "Hallo von dem BRISE TEST")
+        reconf_monitor.connection_thread.join()
         assert False

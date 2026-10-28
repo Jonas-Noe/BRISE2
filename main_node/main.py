@@ -166,6 +166,9 @@ class MainThread(threading.Thread):
         self.behaviour_mock = ReconfigurationBehaviourMock(self.reconf, self.configuration_selection)
         self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
+        self.reconf_monitor.test_exchange()
+        return
+
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
         temp_msg = "Measuring default Configuration."
@@ -288,7 +291,7 @@ class MainThread(threading.Thread):
                           'stop_experiment_exchange', 'check_stop_condition_expression_exchange', 'logging_exchange',
                           'get_worker_capacity_exchange', 'get_new_configuration_exchange',
                           'measure_new_configuration_exchange', 'process_tasks_exchange', 'experiment_api_exchange',
-                          'reconfiguration_exchange', 'reconf_monitor_events']
+                          'reconfiguration_exchange', 'reconf_monitor_event_exchange']
         for exchange in self.exchanges:
             queue_name = exchange + self.experiment.unique_id
             result = self.consume_channel.queue_declare(queue=queue_name)

@@ -20,8 +20,11 @@ class Monitorable:
 
     def __setattr__(self, name, value):
         """Added default behavior to notify on value change. Does not affect lists, dicts, etc."""
-        if (hasattr(self, name) and getattr(self, name) != value):
-            self.value_changed(name, value, old_value=getattr(self, name))
+        try:
+            if (hasattr(self, name) and getattr(self, name) != value):
+                self.value_changed(name, value, old_value=getattr(self, name))
+        except Exception as e:
+            print("WARNING: Exception in monitorable:", e)
 
         super().__setattr__(name, value)
 
@@ -105,7 +108,7 @@ class Monitorable:
         })
         
         print("Monitor Event:", event)
-        publish("reconf_monitor_events", Monitorable.experiment_id, json.dumps(event))
+        publish("reconf_monitor_event_exchange", Monitorable.experiment_id, json.dumps(event))
 
 class MonitorableABC(Monitorable, metaclass=ABCMeta):
     __slots__ = ()

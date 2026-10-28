@@ -87,6 +87,15 @@
       }
     },
     {
+      "name": "front_monitor_queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1000
+      }
+    },
+    {
       "name": "benchmark_final_queue",
       "vhost": "/",
       "durable": true,
@@ -157,6 +166,15 @@
       "durable": true,
       "auto_delete": false,
       "arguments": {}
+    },
+    {
+      "name": "monitor_rpc_queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-message-ttl": 1000
+      }
     }
   ],
   "exchanges": [
@@ -350,7 +368,7 @@
       "arguments": {}
     },
     {
-      "name": "reconf_monitor_events",
+      "name": "reconf_monitor_event_exchange",
       "vhost": "/",
       "type": "direct",
       "durable": true,

@@ -2,10 +2,13 @@ import os
 import json
 import time
 
+import pika
+import logging
+
 from tools.singleton import Singleton
 from configuration_selection.configuration_selection import ConfigurationSelection
 
-from tools.rabbitmq_common_tools import RabbitMQConnection
+from tools.rabbitmq_common_tools import RabbitMQConnection, publish
 
 from reconfiguration.monitoring.monitorable import Monitorable
 from reconfiguration.effector import Effector
@@ -51,6 +54,9 @@ class MonitorData():
 
 class ReconfigurationMonitor(metaclass=Singleton):
 
+    # For testing
+    run_event_service = False
+
     data_stucture = {
         Predictor: "Predictor",
         Model: "Predictor.Model",
@@ -63,6 +69,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
 
     def __init__(self, cs:ConfigurationSelection):
         self.cs = cs
+        self.logger = logging.getLogger(__name__)
 
         # Data
         self.monitor_data = {}
@@ -71,7 +78,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
         # Activate monitors
         Monitorable.active = True
 
-        if os.environ.get('TEST_MODE') != 'UNIT_TEST':
+        if os.environ.get('TEST_MODE') != 'UNIT_TEST' or ReconfigurationMonitor.run_event_service:
             self.connection_thread = self._EventServiceConnection(self, cs.experiment.unique_id)
             self.connection_thread.start()
 
@@ -171,15 +178,43 @@ class ReconfigurationMonitor(metaclass=Singleton):
 
         self.process_event(event)
 
-    def _get_descriptions(self, model_description:dict, type_name:str):
-        """Return a list with all descriptions of a special type like Optimizer, Surrogate, etc."""
-        return [description for key, description in model_description.items() if type_name in key]
+    def _on_monitor_rpc(self, ch, method, properties, body):
+        """Handles incoming monitor events from the front end"""
+        try:
+            event = json.loads(body.decode())
+            print("Received monitor_rpc event:", event)
+
+            if "event_type" not in event:
+                self.logger.warning("Invalid rpc event received: %s", event)
+                return
+
+            # Process event(s)
+            event_type = event["event_type"]
+            if event_type == "request_data":
+                self.logger.info("Request for monitoring data received")
+
+                data = {"general": {"name": "test"}, "predictor": {"value": 10}}
+
+                # Send back to reply_to queue of the rpc
+                ch.basic_publish(exchange="",
+                                 routing_key=properties.reply_to,
+                                 properties=pika.BasicProperties(correlation_id=properties.correlation_id),
+                                 body=json.dumps(data))
+                return
+
+            self.logger.warning("Unknown rpc event type \"%s\" in event %s", event_type, event)
+
+        except json.JSONDecodeError as e:
+            self.logger.exception(e)
+
+    def test_exchange(self):
+        self.connection_thread.join()
 
     class _EventServiceConnection(RabbitMQConnection):
         """
         This class is responsible for listening to X queues.
         1. `stop_components` for shutting down configuration selection module (in case of BRISE Experiment termination).
-        2. `reconf_monitor_events` for getting information about monitored components.
+        2. `reconf_monitor_event_exchange` for getting information about monitored components.
         """
 
         def __init__(self, monitor_module, experiement_id):
@@ -197,8 +232,13 @@ class ReconfigurationMonitor(metaclass=Singleton):
                                     queue=self.termination_queue_name,
                                     routing_key=self.experiment_id)
 
-            self.channel.basic_consume(queue="reconf_monitor_events" + self.experiment_id, auto_ack=True,
+            self.channel.basic_consume(queue="reconf_monitor_event_exchange" + self.experiment_id, auto_ack=True,
                                         on_message_callback=self.monitor_module._on_event)
+
+            self.channel.basic_consume(queue="monitor_rpc_queue", auto_ack=True,
+                                       on_message_callback=self.monitor_module._on_monitor_rpc)
+            
             self.channel.basic_consume(queue=self.termination_queue_name, auto_ack=True,
                                         on_message_callback=self.stop)
+
     
