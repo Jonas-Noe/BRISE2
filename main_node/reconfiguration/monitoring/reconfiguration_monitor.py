@@ -83,12 +83,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
             self.connection_thread.start()
 
     def _load_inital_data(self):
-        """Load data from existing monitorable objects and build data"""
-        desc = self.cs.experiment.description["ConfigurationSelection"]
-
-        # 1. Idea identify VP/name in desc by class/module name
-        #       - Match 
-        
+        """Load data from existing monitorable objects and build data"""        
         for monitor in Monitorable.instances:
             cls = monitor.__class__
             cls_name = cls.__name__
@@ -115,6 +110,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
         Monitorable.instances.clear()
 
     def lookup_comp(self, comp):
+        """Collect data about the monitored component. Returns a dict with the keys `vp` (variation point), `active` (component currently in use)."""
         default = {"vp": None, "active": True}
 
         if isinstance(comp, Predictor):
@@ -173,13 +169,15 @@ class ReconfigurationMonitor(metaclass=Singleton):
             print("MONITOR:", event["func_name"], "of", event["object"], "took", event["time_ms"], "ms")
 
     def _on_event(self, ch, method, properties, body):
-        """Method to receive events from queue"""
-        event = json.loads(body.decode())
-
-        self.process_event(event)
+        """Receive events from queue"""
+        try:
+            event = json.loads(body.decode())
+            self.process_event(event)
+        except json.JSONDecodeError as e:
+            self.logger.exception(e)
 
     def _on_monitor_rpc(self, ch, method, properties, body):
-        """Handles incoming monitor events from the front end"""
+        """Handle incoming monitor events from the front end"""
         try:
             event = json.loads(body.decode())
             print("Received monitor_rpc event:", event)
@@ -215,6 +213,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
         This class is responsible for listening to X queues.
         1. `stop_components` for shutting down configuration selection module (in case of BRISE Experiment termination).
         2. `reconf_monitor_event_exchange` for getting information about monitored components.
+        3. `monitor_rpc_queue` for receiving data request from the front end.
         """
 
         def __init__(self, monitor_module, experiement_id):

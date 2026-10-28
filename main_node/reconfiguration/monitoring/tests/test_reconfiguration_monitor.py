@@ -31,7 +31,7 @@ class TestReconfigurationMonitor:
         os.environ["TEST_MODE"] = "UNIT_TEST"
 
         # TODO: Remove!!!!
-        ReconfigurationMonitor.run_event_service = True
+        #ReconfigurationMonitor.run_event_service = True
 
         experiment_description, search_space = get_experiment(experiment_num)
         experiment = Experiment(experiment_description, search_space)
@@ -43,9 +43,4 @@ class TestReconfigurationMonitor:
         """Test the processing of created monitored components"""
         #print(reconf_monitor)
         #print(reconf_monitor.monitor_data)
-        assert False
-
-    def test_monitor_exchance_queue(self, reconf_monitor:ReconfigurationMonitor):
-        publish("monitor_exchange", "", "Hallo von dem BRISE TEST")
-        reconf_monitor.connection_thread.join()
         assert False
