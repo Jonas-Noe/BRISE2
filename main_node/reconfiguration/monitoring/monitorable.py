@@ -14,9 +14,12 @@ class Monitorable:
 
     def __init__(self):
         self._runtimes = {} # Keeps track of current runtime measurements
-        self._ignore_attributes = ["_ignore_attributes", "_runtimes", "instances", "experiment_id", "active"]
 
-        Monitorable.instances.append(self)            
+        # Whitelist and blacklist for attribute tracking
+        self._whitelist = None
+        self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "instances", "experiment_id", "active"]
+
+        Monitorable.instances.append(self)
 
     def __setattr__(self, name, value):
         """Added default behavior to notify on value change. Does not affect lists, dicts, etc."""
@@ -31,6 +34,14 @@ class Monitorable:
     def value_changed(self, name, value, old_value=None):
         """Send a attribute change event. Old value may be None"""
         if not Monitorable.active:
+            return
+
+        # Check whitelist
+        if self._whitelist is not None and name not in self._whitelist:
+            return
+
+        # Check blacklist
+        if name in self._blacklist:
             return
 
         print(f"Monitor: {name} changed to {value}")
@@ -86,12 +97,28 @@ class Monitorable:
         
         # Find valid attributes to monitor
         for attr, v in self.__dict__.items():
-            if attr in self._ignore_attributes or callable(v):
+            if attr in self._blacklist or callable(v):
+                continue
+
+            # Whitelist
+            if self._whitelist is not None and attr not in self._whitelist:
                 continue
 
             attributes[attr] = v
 
         return attributes
+
+    def whitelist_attributes(self, whitelist:list|None, overwrite:bool=False):
+        """Add or overwrite the whitelistet attributes. Set `whitelist` to None to deactivate the whitelist."""
+        if overwrite or self._whitelist is None:
+            self._whitelist = whitelist
+            return
+
+        self._whitelist.extend(whitelist)
+
+    def blacklist_attributes(self, blacklist:list):
+        """Add attributes to the blacklist so they will no longer be monitored"""
+        self._blacklist.extend(blacklist)
 
     def publish_event(self, event:dict):
         """Publish a monitor event. (Overwrite for unit tests)"""
@@ -107,7 +134,7 @@ class Monitorable:
             "class_str": str(self)
         })
         
-        print("Monitor Event:", event)
+        print("Monitor Event published:", event)
         publish("reconf_monitor_event_exchange", Monitorable.experiment_id, json.dumps(event))
 
 class MonitorableABC(Monitorable, metaclass=ABCMeta):

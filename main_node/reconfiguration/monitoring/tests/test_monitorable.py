@@ -112,6 +112,30 @@ class TestMonitorable:
         assert attributes["name"] == "John"
         assert attributes["age"] == 20
 
+    def test_attribute_whitelist(self, monitored_object:MonitorObj):
+        """Test that the whitelist function works correctly"""
+        monitored_object.whitelist_attributes(["name"])
+
+        monitored_object.change()
+
+        assert_event({"type": "attribute_change", "attr": "name", "value": "Marry"}, monitored_object)
+        assert_event({"type": "attribute_change", "attr": "age", "value": 22}, monitored_object, not_send=True)
+        assert_event({"type": "attribute_change", "attr": "_whitelist", "value": ["name"]}, monitored_object, not_send=True)
+
+        # Turn whitelist off
+        monitored_object.whitelist_attributes(None)
+        assert_event({"type": "attribute_change", "attr": "name", "value": "Marry"}, monitored_object)
+        assert_event({"type": "attribute_change", "attr": "age", "value": 22}, monitored_object)
+
+    def test_attribute_blacklist(self, monitored_object:MonitorObj):
+        """Test that the blacklist function works correctly"""
+        monitored_object.blacklist_attributes(["age"])
+
+        monitored_object.change()
+
+        assert_event({"type": "attribute_change", "attr": "name", "value": "Marry"}, monitored_object)
+        assert_event({"type": "attribute_change", "attr": "age", "value": 22}, monitored_object, not_send=True)
+
 def assert_event(event:dict, monitorable:Monitorable, not_send:bool=False):
     """Helper method to assert that a special event was send.
     Checks that alle keys that are present in `event`

@@ -166,8 +166,8 @@ class MainThread(threading.Thread):
         self.behaviour_mock = ReconfigurationBehaviourMock(self.reconf, self.configuration_selection)
         self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
-        #self.reconf_monitor.test_exchange()
-        #return
+        self.reconf_monitor.test_exchange()
+        return
 
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
