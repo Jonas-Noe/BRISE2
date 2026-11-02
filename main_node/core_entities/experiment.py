@@ -17,8 +17,10 @@ from core_entities.search_space import SearchSpace
 from tools.front_API import API
 from tools.mongo_dao import MongoDB
 
+from reconfiguration.monitoring.monitorable import Monitorable
 
-class Experiment:
+
+class Experiment(Monitorable):
 
     def __init__(self, description: dict, search_space: SearchSpace):
         """
@@ -59,6 +61,13 @@ class Experiment:
                                 os.getenv("BRISE_DATABASE_NAME"),
                                 os.getenv("BRISE_DATABASE_USER"),
                                 os.getenv("BRISE_DATABASE_PASS"))
+
+        self.number_of_measured_configurations = 0
+
+        super().__init__()
+        self.whitelist_attributes(["name", "unique_id", "model_is_valid",
+                                    {"name": "bad_configurations_number", "value_type": "static"},
+                                    {"name": "number_of_measured_configurations", "value_type": "static"}])
 
     def _get_description(self):
         return deepcopy(self._description)
@@ -279,6 +288,7 @@ class Experiment:
         :return: None
         """
         self.measured_configurations.append(configuration)
+        self.number_of_measured_configurations = len(self.measured_configurations)
         if configuration.is_better(self.get_objectives_minimization(),
                                    self.current_best_configurations[0]):
             # we do not need parameter_control_info anymore, since better configuration was found

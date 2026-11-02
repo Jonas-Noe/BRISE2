@@ -15,9 +15,11 @@ class Monitorable:
     def __init__(self):
         self._runtimes = {} # Keeps track of current runtime measurements
 
+        self._attribute_types = {} # Determines the default display behavior in the front-end
+
         # Whitelist and blacklist for attribute tracking
         self._whitelist = None
-        self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "instances", "experiment_id", "active"]
+        self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "_attribute_types", "instances", "experiment_id", "active"]
 
         Monitorable.instances.append(self)
 
@@ -46,7 +48,11 @@ class Monitorable:
 
         print(f"Monitor: {name} changed to {value}")
 
-        event = {"type": "attribute_change", "attr": name, "value": value, "old_value": old_value}
+        event = {"type": "attribute_change",
+                 "name": name,
+                 "value": value,
+                 "old_value": old_value}
+                 #"value_type": self._attribute_types[name] if name in self._attribute_types else None}
         self.publish_event(event)
 
     def monitor_runtime(name:str|None=None):
@@ -61,10 +67,9 @@ class Monitorable:
                 duration = time.time() - start
                 
                 event = {
-                    "type": "func_runtime",
-                    "func_name": func.__name__,
-                    "time_ms": duration / 1000,
-                    "name": name if name is not None else ""
+                    "type": "runtime",
+                    "time_ms": duration * 1000,
+                    "name": name if name is not None else func.__name__
                 }
         
                 self.publish_event(event)
@@ -84,7 +89,7 @@ class Monitorable:
         duration = (time.time() - self._runtimes[name])
         event = {
             "type": "runtime",
-            "time_ms": duration / 1000,
+            "time_ms": duration * 1000,
             "name": name
         }
 
@@ -109,16 +114,41 @@ class Monitorable:
         return attributes
 
     def whitelist_attributes(self, whitelist:list|None, overwrite:bool=False):
-        """Add or overwrite the whitelistet attributes. Set `whitelist` to None to deactivate the whitelist."""
-        if overwrite or self._whitelist is None:
-            self._whitelist = whitelist
+        """Add or overwrite the whitelistet attributes. Set `whitelist` to None to deactivate the whitelist.
+        To define the default value type use a dict `{name: ATTR_NAME, value_type: TYPE}`"""
+        # Deactivate whitelist
+        if whitelist is None:
+            self._whitelist = None
             return
 
-        self._whitelist.extend(whitelist)
+        # Overwrite/activate whitelist
+        if self._whitelist is None or overwrite:
+            self._whitelist = []
+
+        # No special arguments
+        if all([isinstance(e, str) for e in whitelist]):
+            self._whitelist.extend(whitelist)
+            return
+
+        # Parse additional arguments
+        for e in whitelist:
+            if isinstance(e, dict):
+                if not "name" in e or not "value_type" in e:
+                    raise Exception("Missing required keys for whitelisting attribute! %s", e)
+
+                self._whitelist.append(e["name"])
+                self._attribute_types[e["name"]] = e["value_type"]
+                continue
+
+            self._whitelist.append(e)
 
     def blacklist_attributes(self, blacklist:list):
         """Add attributes to the blacklist so they will no longer be monitored"""
         self._blacklist.extend(blacklist)
+
+    def set_attribute_type(self, attr_name:str, value_type:str|None):
+        """Set the default value type of a attribute for the front-end. Will only be applied if the setting is done before the registration"""
+        self._attribute_types[attr_name] = value_type
 
     def publish_event(self, event:dict):
         """Publish a monitor event. (Overwrite for unit tests)"""
@@ -130,8 +160,8 @@ class Monitorable:
 
         event.update({
             "obj_id": id(self),
-            "class_name": str(type(self).__name__),
-            "class_str": str(self)
+            #"class_name": str(type(self).__name__),
+            #"module": str(self.__class__.__module__)
         })
         
         print("Monitor Event published:", event)

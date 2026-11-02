@@ -1,9 +1,11 @@
 import os
 import json
 import time
-
+import psutil
 import pika
 import logging
+
+from threading import Thread
 
 from tools.singleton import Singleton
 from configuration_selection.configuration_selection import ConfigurationSelection
@@ -13,6 +15,7 @@ from tools.rabbitmq_common_tools import RabbitMQConnection, publish
 from reconfiguration.monitoring.monitorable import Monitorable
 from reconfiguration.effector import Effector
 
+from core_entities.experiment import Experiment
 from configuration_selection.model.predictor import Predictor
 from configuration_selection.model.model import Model
 from configuration_selection.sampling.selection_algorithm_abs import SamplingStrategy
@@ -22,31 +25,43 @@ from configuration_selection.model.candidate_selector.candidate_selector_abs imp
 from configuration_selection.model.validator.validator_abs import Validator
 
 class MonitorData():
-    def __init__(self, monitor:Monitorable, key:str, comp_data:dict):
-        self.obj_id = id(monitor)
-        self.key = key
+    def __init__(self, monitor_or_id:Monitorable|int, comp_data:dict):
+        is_monitor = not isinstance(monitor_or_id, int)
+
+        self.obj_id = id(monitor_or_id) if is_monitor else 0
+        self.key = comp_data["key"]
+        self.active = comp_data["active"]
+        self.obj_class = monitor_or_id.__class__.__name__ if is_monitor else ""
 
         self.attributes = {}
 
-        #for name, v in monitor.get_attributes().items():
-        #    self.attributes[name] = self._time_stamped_value(v)
+        if is_monitor and (isinstance(monitor_or_id, Experiment) or isinstance(monitor_or_id, Predictor)):
+            for name, v in monitor_or_id.get_attributes().items():
+                self.attributes[name] = {"value_type": monitor_or_id._attribute_types.get(name, None),
+                                         "values": [self._time_stamped_value(v)]}
+            #print(self.attributes)
 
         self.runtimes = {}
 
-    def add_attribute_change(self, name, value, old_value=None):
-        """Register a new attribute change and returns the saved data"""
+    def add_attribute_change(self, name:str, value, old_value=None, value_type=None):
+        """Register a new attribute change and returns the saved data. Setting the value type with this method only works during init via this module!"""
         if name not in self.attributes:
-            self.attributes[name] = [self._time_stamped_value(value)]
-            return
+            self.attributes[name] = {"value_type": value_type, "values": [self._time_stamped_value(value)]}
+            return self.attributes[name]["values"][-1]
 
-        self.attributes[name].append(self._time_stamped_value(value))
-        return self.attributes[name][-1]
+        self.attributes[name]["values"].append(self._time_stamped_value(value))
+        return self.attributes[name]["values"][-1]
 
-    def add_runtime(self, name):
-        pass
+    def add_runtime(self, name:str, duration):
+        """Add a new runtime and return the timestamped data entry"""
+        if name not in self.runtimes:
+            self.runtimes[name] = [self._time_stamped_value(duration)]
+
+        self.runtimes[name].append(self._time_stamped_value(duration))
+        return self.runtimes[name][-1]
 
     def _time_stamped_value(self, value):
-        return {"value": value, "time": time.time()}
+        return {"value": value, "timestamp": int(time.time() * 1000)}
 
     def __str__(self):
         return "MonitorData: " + ", ".join([k + ": " + str(v) for k, v in self.__dict__.items()])
@@ -54,25 +69,18 @@ class MonitorData():
 
 class ReconfigurationMonitor(metaclass=Singleton):
 
-    # For testing
+    # For testing (TODO: Remove?)
     run_event_service = False
-
-    data_stucture = {
-        Predictor: "Predictor",
-        Model: "Predictor.Model",
-        Surrogate: "Predictor.Model.Surrogate",
-        Optimizer: "Predictor.Model.Optimizer",
-        CandidateSelector: "Predictor.Model.CandidateSelector",
-        Validator: "Predictor.Model.Validator",
-        SamplingStrategy: "SamplingStrategy"
-    }
 
     def __init__(self, cs:ConfigurationSelection):
         self.cs = cs
         self.logger = logging.getLogger(__name__)
 
         # Data
-        self.monitor_data = {}
+        self.monitor_data = {
+            0: MonitorData(0, {"key": "General", "active": True})
+        }
+
         self._load_inital_data()
 
         # Activate monitors
@@ -85,46 +93,45 @@ class ReconfigurationMonitor(metaclass=Singleton):
     def _load_inital_data(self):
         """Load data from existing monitorable objects and build data"""        
         for monitor in Monitorable.instances:
-            cls = monitor.__class__
-            cls_name = cls.__name__
-            cls_module = str(cls.__module__).replace("configuration_selection.model.", "")
-            base_vp_name = "".join([s.capitalize() for s in cls_module.split(".")[0].split("_")])
-            print(cls_name, cls_module, base_vp_name)
-
-            key = None
-
-            for cls_type, k in ReconfigurationMonitor.data_stucture.items():
-                if isinstance(monitor, cls_type):
-                    key = k
-                    print("Found match", cls_type.__name__)
-                    break
-
-            if key is None:
-                print("NO MATCH found for:", monitor)
-                continue
+            cls_name = monitor.__class__.__name__
+            print(cls_name)
 
             # Construct inital monitor data
-            self.monitor_data[id(monitor)] = MonitorData(monitor, key, self.lookup_comp(monitor))
+            self.monitor_data[id(monitor)] = MonitorData(monitor, self._lookup_comp(monitor))
             print(self.monitor_data[id(monitor)])
 
         Monitorable.instances.clear()
 
-    def lookup_comp(self, comp):
+        # Load general info
+        generalData = self.monitor_data[0]
+        generalData.add_attribute_change("Start Time", int(time.time() * 1000), value_type="timestamp")
+        self._update_general_data()
+
+        # Demo
+        generalData.add_attribute_change("Operator", "none")
+        generalData.add_attribute_change("Operator", "Marry Smith")
+        generalData.add_attribute_change("Operator", "John Doe")
+
+    def _lookup_comp(self, comp):
         """Collect data about the monitored component. Returns a dict with the keys `vp` (variation point), `active` (component currently in use)."""
-        default = {"vp": None, "active": True}
+        default = {"key": None, "active": True}
+
+        if isinstance(comp, Experiment):
+            return {"key": "Experiment", "active": self.cs.experiment == comp}
 
         if isinstance(comp, Predictor):
-            return {"vp": "Predictor", "active": self.cs.predictor == comp}
+            return {"key": "Predictor", "active": self.cs.predictor == comp}
 
         if isinstance(comp, Model):
-            return {"vp": comp.model_name, "active": comp in self.cs.predictor.mapping_region_model.values()}
+            return {"key": "Predictor." + comp.model_name, "active": comp in self.cs.predictor.mapping_region_model.values()}
 
         if isinstance(comp, Surrogate):
             for model in self.cs.predictor.mapping_region_model.values():
                 for surrogate in model.mapping_surrogate_objective.keys():
                     if surrogate == comp:
                     #if surrogate.surrogate_description == comp.surrogate_description:
-                        return {"vp": model.model_name + "." + model.get_surrogate_vp(comp), "active": True}
+                        return {"key": "Predictor." + model.model_name + "." + model.get_surrogate_vp(comp),
+                                "active": True}
 
             # Search for surrogate in dynamic composite surrogates
             
@@ -134,39 +141,88 @@ class ReconfigurationMonitor(metaclass=Singleton):
             for model in self.cs.predictor.mapping_region_model.values():
                 for optimizer in model.mapping_optimizer_objective.keys():
                     if optimizer == comp:
-                        return {"vp": model.model_name + "." + model.get_optimizer_vp(comp), "active": True}
+                        return {"key": "Predictor." + model.model_name + "." + model.get_optimizer_vp(comp),
+                                "active": True}
             return default
 
         if isinstance(comp, CandidateSelector):
             for model in self.cs.predictor.mapping_region_model.values():
                 if model.candidate_selector == comp:
-                    return {"vp": model.model_name + ".CandidateSelector", "active": True}
+                    return {"key": "Predictor." + model.model_name + ".CandidateSelector",
+                            "active": True}
             
             return default
 
         if isinstance(comp, Validator):
             for model in self.cs.predictor.mapping_region_model.values():
                 if model.internal_validator == comp or model.external_validator == comp:
-                    return {"vp": model.model_name + ".Validator", "external": model.external_validator == comp, "active": True}
+                    return {"key": "Predictor." + model.model_name + ".Validator",
+                            "external": model.external_validator == comp, "active": True}
 
         if isinstance(comp, SamplingStrategy):
-            return {"vp": "SamplingStrategy", "active": comp in self.cs.predictor.mapping_region_sampling_strategy.values()}
+            return {"key": "SamplingStrategy",
+                    "active": comp in self.cs.predictor.mapping_region_sampling_strategy.values()}
 
         return default
+
+    def sync(self):
+        """Called after a new set of configurations is evaluated (and a possible reconfiguration was performed).
+        Update monitoring data.
+        """
+        pass
+
+    def _update_general_data(self):
+        """Collects and updates general data of the framework, i.e. data that is not connected via a monitor."""
+        generalData = self.monitor_data[0]
+        generalData.add_attribute_change("CPU", psutil.cpu_percent())
+        generalData.add_attribute_change("Memory", psutil.virtual_memory().percent)
 
     def process_event(self, event:dict):
         """Process given event. Separated from `_on_event` to allow for direct acccess (for testing)."""
         # Validate event
-        if not all(["obj_id", "class_name", "type"] in event.keys()):
+        if not all(key in event.keys() for key in ["obj_id", "type"]): #"class_name", "type"
             raise Exception("Invalid monitoring event received. Missing mandatory keys! %s", event)
 
         #print("Monitor event:", event)
         t = event["type"]
+        obj_id = event["obj_id"]
 
+        # Check if object is registered
+        if obj_id not in self.monitor_data:
+            raise Exception("Unable to process event. Object id not found in self.monitoring_data. Components is not registered! Event: %s", event)
+
+        # Create the front-end event template
+        data_obj = self.monitor_data[obj_id]
+        new_event = {
+            "type": t,
+            "obj_id": obj_id,
+            "key": data_obj.key,
+        }
+
+        # Handle event types and forward to front-end
         if t == "create":
             pass
-        elif t == "func_runtime":
-            print("MONITOR:", event["func_name"], "of", event["object"], "took", event["time_ms"], "ms")
+        elif t == "attribute_change":
+            new_event.update({
+                "name": event["name"],
+                "old_value": event["old_value"]
+            })
+            new_event.update(data_obj.add_attribute_change(event["name"], event["value"], event["old_value"]))
+        elif t == "runtime":
+            new_event.update({
+                "name": event["name"]
+            })
+            new_event.update(data_obj.add_runtime(event["name"], event["time_ms"]))
+        else:
+            self.logger.error("Tried to process unknown event: %s", event)
+            return
+
+        self._publish_to_front_end(new_event)
+
+    def _publish_to_front_end(self, event:dict):
+        """Publish an event to the front end queue"""
+        publish("", "front_monitor_queue", json.dumps(event))
+        print("Published to front-end", event)
 
     def _on_event(self, ch, method, properties, body):
         """Receive events from queue"""
@@ -191,13 +247,15 @@ class ReconfigurationMonitor(metaclass=Singleton):
             if event_type == "request_data":
                 self.logger.info("Request for monitoring data received")
 
-                data = {"general": {"name": "test"}, "predictor": {"value": 10}}
+                #data = {"general": {"name": "test"}, "predictor": {"value": 10}}
+                # Need to serialize monitor data?
 
                 # Send back to reply_to queue of the rpc
                 ch.basic_publish(exchange="",
                                  routing_key=properties.reply_to,
                                  properties=pika.BasicProperties(correlation_id=properties.correlation_id),
-                                 body=json.dumps(data))
+                                 body=json.dumps(self.monitor_data, default=vars))
+                self.logger.info("Request for monitoring data send")
                 return
 
             self.logger.warning("Unknown rpc event type \"%s\" in event %s", event_type, event)
@@ -205,8 +263,43 @@ class ReconfigurationMonitor(metaclass=Singleton):
         except json.JSONDecodeError as e:
             self.logger.exception(e)
 
+    def send_demo_data(self):
+        t = Thread(target=self.send_test_data, daemon=True)
+        t.start()
+
     def test_exchange(self):
         self.connection_thread.join()
+
+    def send_test_data(self):
+        import time, random
+
+        while True:
+            if "Predictor" not in self.monitor_data:
+                time.sleep(3)
+
+            
+
+            # Simulate runtime measurement
+            pred = self.cs.predictor
+            print("Send demo data")
+            pred.start_runtime("test_runtime")
+            time.sleep(random.randint(1, 2))
+            pred.stop_runtime("test_runtime")
+
+            pred.start_runtime("test_runtime_2")
+            time.sleep(random.randint(1, 2))
+            pred.stop_runtime("test_runtime_2")
+            time.sleep(3)
+
+            self.cs.experiment.bad_configurations_number = (self.cs.experiment.bad_configurations_number + 1) % 30
+            time.sleep(1)
+
+            #self._update_general_data()
+
+            # Clear to not waste too much mem
+            if len(self.monitor_data[id(pred)].runtimes["test_runtime"]) >= 20:
+                self.monitor_data[id(pred)].runtimes.clear()
+                print("Cleared data")
 
     class _EventServiceConnection(RabbitMQConnection):
         """

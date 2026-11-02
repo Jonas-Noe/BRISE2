@@ -166,6 +166,7 @@ class MainThread(threading.Thread):
         self.behaviour_mock = ReconfigurationBehaviourMock(self.reconf, self.configuration_selection)
         self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
+        self.reconf_monitor.send_demo_data()
         self.reconf_monitor.test_exchange()
         return
 
