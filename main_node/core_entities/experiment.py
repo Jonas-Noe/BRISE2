@@ -289,6 +289,8 @@ class Experiment(Monitorable):
         """
         self.measured_configurations.append(configuration)
         self.number_of_measured_configurations = len(self.measured_configurations)
+        #self.value_changed("number_of_measured_configurations", len(self.measured_configurations), len(self.measured_configurations) - 1)
+        
         if configuration.is_better(self.get_objectives_minimization(),
                                    self.current_best_configurations[0]):
             # we do not need parameter_control_info anymore, since better configuration was found

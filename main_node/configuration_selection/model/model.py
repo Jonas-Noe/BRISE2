@@ -28,6 +28,10 @@ class Model(Monitorable):
 
         self._init_model(model_description, vpoint=model_name)
         super().__init__()
+        self.whitelist_attributes(["time_to_build",
+                                   {"name": "model_description", "value_type": "string"},
+                                   {"name": "objectives", "value_type": "string"},
+                                   {"name": "region", "value_type": "string"}])
 
     @Effector.effector("Model") # VP Name definied by vpoint arg!
     def _init_model(self, model_description, vpoint=None, **kwargs):
@@ -177,6 +181,7 @@ class Model(Monitorable):
                 return vp
         return None
 
+    @Monitorable.monitor_runtime()
     def predict(self, parameters: List[Hyperparameter], configurations: List[Configuration]) -> pd.DataFrame:
         """
         Encapsulates all model related functionality.

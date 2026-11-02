@@ -166,8 +166,8 @@ class MainThread(threading.Thread):
         self.behaviour_mock = ReconfigurationBehaviourMock(self.reconf, self.configuration_selection)
         self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
-        self.reconf_monitor.send_demo_data()
-        self.reconf_monitor.test_exchange()
+        #self.reconf_monitor.send_demo_data()
+        #self.reconf_monitor.test_exchange()
         return
 
         dch_o = DefaultConfigHandlerOrchestrator()
@@ -244,6 +244,9 @@ class MainThread(threading.Thread):
 
                 # Reconfiguration
                 self.reconf.check_for_reconfiguration()
+
+                # Monitoring sync
+                self.reconf_monitor.sync()
 
                 evaluation_time = {"evaluation_time": configuration.get_evaluation_time()}
                 self.consume_channel.basic_publish(exchange='get_worker_capacity_exchange',

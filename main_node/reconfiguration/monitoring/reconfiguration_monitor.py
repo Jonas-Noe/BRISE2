@@ -31,11 +31,12 @@ class MonitorData():
         self.obj_id = id(monitor_or_id) if is_monitor else 0
         self.key = comp_data["key"]
         self.active = comp_data["active"]
+        self.region = comp_data.get("region", None)
         self.obj_class = monitor_or_id.__class__.__name__ if is_monitor else ""
 
         self.attributes = {}
 
-        if is_monitor and (isinstance(monitor_or_id, Experiment) or isinstance(monitor_or_id, Predictor)):
+        if is_monitor and (isinstance(monitor_or_id, Experiment) or isinstance(monitor_or_id, Predictor) or isinstance(monitor_or_id, Model)):
             for name, v in monitor_or_id.get_attributes().items():
                 self.attributes[name] = {"value_type": monitor_or_id._attribute_types.get(name, None),
                                          "values": [self._time_stamped_value(v)]}
@@ -44,27 +45,50 @@ class MonitorData():
         self.runtimes = {}
 
     def add_attribute_change(self, name:str, value, old_value=None, value_type=None):
-        """Register a new attribute change and returns the saved data. Setting the value type with this method only works during init via this module!"""
+        """Register a new attribute change and returns the front-end event. Setting the value type with this method only works during init via this module!"""
+        event = self._event_header("attribute_change", {"name": name, "old_value": old_value})
+        
         if name not in self.attributes:
-            self.attributes[name] = {"value_type": value_type, "values": [self._time_stamped_value(value)]}
-            return self.attributes[name]["values"][-1]
+            self.attributes[name] = {"value_type": value_type, "values": []}
 
         self.attributes[name]["values"].append(self._time_stamped_value(value))
-        return self.attributes[name]["values"][-1]
+
+        event.update(self.attributes[name]["values"][-1])
+        return event
 
     def add_runtime(self, name:str, duration):
-        """Add a new runtime and return the timestamped data entry"""
+        """Add a new runtime and return the front-end event"""
+        event = self._event_header("runtime", {"name": name})
+
+        # Add runtime
         if name not in self.runtimes:
-            self.runtimes[name] = [self._time_stamped_value(duration)]
+            self.runtimes[name] = []
 
         self.runtimes[name].append(self._time_stamped_value(duration))
-        return self.runtimes[name][-1]
+
+        event.update(self.runtimes[name][-1]) # Add value and timestamp 
+        return event
 
     def _time_stamped_value(self, value):
+
+        # Take string values from complex objects
+        if not isinstance(value, (str, int, float))\
+            and not (isinstance(value, list) and all([isinstance(e, (str, int, float)) for e in value])):
+            value = str(value)
+
         return {"value": value, "timestamp": int(time.time() * 1000)}
 
+    def _event_header(self, event_type:str, data:dict|None=None):
+        """Return a dict with the front-end event header"""
+        e = {"type": event_type, "obj_id": self.obj_id, "key": self.key}
+
+        if data is not None:
+            e.update(data)
+
+        return e
+
     def __str__(self):
-        return "MonitorData: " + ", ".join([k + ": " + str(v) for k, v in self.__dict__.items()])
+        return "MonitorData: " + ", ".join([k + ": " + str(v) for k, v in self.__dict__.items() if k != "attributes"])
 
 
 class ReconfigurationMonitor(metaclass=Singleton):
@@ -75,6 +99,8 @@ class ReconfigurationMonitor(metaclass=Singleton):
     def __init__(self, cs:ConfigurationSelection):
         self.cs = cs
         self.logger = logging.getLogger(__name__)
+        self._syncing = False
+        self._buffered_events = []
 
         # Data
         self.monitor_data = {
@@ -123,7 +149,9 @@ class ReconfigurationMonitor(metaclass=Singleton):
             return {"key": "Predictor", "active": self.cs.predictor == comp}
 
         if isinstance(comp, Model):
-            return {"key": "Predictor." + comp.model_name, "active": comp in self.cs.predictor.mapping_region_model.values()}
+            return {"key": "Predictor." + comp.model_name,
+                    "active": comp in self.cs.predictor.mapping_region_model.values(),
+                    "region": comp.region[0].name}
 
         if isinstance(comp, Surrogate):
             for model in self.cs.predictor.mapping_region_model.values():
@@ -131,7 +159,8 @@ class ReconfigurationMonitor(metaclass=Singleton):
                     if surrogate == comp:
                     #if surrogate.surrogate_description == comp.surrogate_description:
                         return {"key": "Predictor." + model.model_name + "." + model.get_surrogate_vp(comp),
-                                "active": True}
+                                "active": True,
+                                "region": model.region[0].name}
 
             # Search for surrogate in dynamic composite surrogates
             
@@ -142,14 +171,16 @@ class ReconfigurationMonitor(metaclass=Singleton):
                 for optimizer in model.mapping_optimizer_objective.keys():
                     if optimizer == comp:
                         return {"key": "Predictor." + model.model_name + "." + model.get_optimizer_vp(comp),
-                                "active": True}
+                                "active": True,
+                                "region": model.region[0].name}
             return default
 
         if isinstance(comp, CandidateSelector):
             for model in self.cs.predictor.mapping_region_model.values():
                 if model.candidate_selector == comp:
                     return {"key": "Predictor." + model.model_name + ".CandidateSelector",
-                            "active": True}
+                            "active": True,
+                            "region": model.region[0].name}
             
             return default
 
@@ -157,11 +188,14 @@ class ReconfigurationMonitor(metaclass=Singleton):
             for model in self.cs.predictor.mapping_region_model.values():
                 if model.internal_validator == comp or model.external_validator == comp:
                     return {"key": "Predictor." + model.model_name + ".Validator",
-                            "external": model.external_validator == comp, "active": True}
+                            "external": model.external_validator == comp,
+                            "active": True,
+                            "region": model.region[0].name}
 
         if isinstance(comp, SamplingStrategy):
             return {"key": "SamplingStrategy",
-                    "active": comp in self.cs.predictor.mapping_region_sampling_strategy.values()}
+                    "active": comp in self.cs.predictor.mapping_region_sampling_strategy.values(),
+                    "region": comp.region[0].name}
 
         return default
 
@@ -169,13 +203,40 @@ class ReconfigurationMonitor(metaclass=Singleton):
         """Called after a new set of configurations is evaluated (and a possible reconfiguration was performed).
         Update monitoring data.
         """
-        pass
+        # Is syncing really necessary? There should be no missmatches. So it might be enough to send events here combined.
+        #self._syncing = True
+        self._update_general_data(send_to_front_end=True)
 
-    def _update_general_data(self):
+        # TODO: Update component data
+        # TODO: Register new monitors??
+
+        
+        # Send buffered events
+        return
+        self._publish_to_front_end({"type": "combined", "events": self._buffered_events})
+
+        self._syncing = False
+        assert len(self._buffered_events) == 0
+        self._buffered_events.clear()
+
+
+    def _update_general_data(self, send_to_front_end:bool=False):
         """Collects and updates general data of the framework, i.e. data that is not connected via a monitor."""
         generalData = self.monitor_data[0]
-        generalData.add_attribute_change("CPU", psutil.cpu_percent())
-        generalData.add_attribute_change("Memory", psutil.virtual_memory().percent)
+        events = []
+
+        events.append(generalData.add_attribute_change("CPU", psutil.cpu_percent()))
+        events.append(generalData.add_attribute_change("Memory", psutil.virtual_memory().percent))
+
+        if not send_to_front_end:
+            return
+
+        combined = {
+            "type": "combined",
+            "events": events
+        }
+
+        self._publish_to_front_end(combined)
 
     def process_event(self, event:dict):
         """Process given event. Separated from `_on_event` to allow for direct acccess (for testing)."""
@@ -193,34 +254,24 @@ class ReconfigurationMonitor(metaclass=Singleton):
 
         # Create the front-end event template
         data_obj = self.monitor_data[obj_id]
-        new_event = {
-            "type": t,
-            "obj_id": obj_id,
-            "key": data_obj.key,
-        }
 
         # Handle event types and forward to front-end
         if t == "create":
             pass
         elif t == "attribute_change":
-            new_event.update({
-                "name": event["name"],
-                "old_value": event["old_value"]
-            })
-            new_event.update(data_obj.add_attribute_change(event["name"], event["value"], event["old_value"]))
+            self._publish_to_front_end(data_obj.add_attribute_change(event["name"], event["value"], event["old_value"]))
         elif t == "runtime":
-            new_event.update({
-                "name": event["name"]
-            })
-            new_event.update(data_obj.add_runtime(event["name"], event["time_ms"]))
+            self._publish_to_front_end(data_obj.add_runtime(event["name"], event["time_ms"]))
         else:
             self.logger.error("Tried to process unknown event: %s", event)
             return
 
-        self._publish_to_front_end(new_event)
-
     def _publish_to_front_end(self, event:dict):
         """Publish an event to the front end queue"""
+        #if self._syncing:
+        #    self._buffered_events.append(event)
+        #    return
+
         publish("", "front_monitor_queue", json.dumps(event))
         print("Published to front-end", event)
 
@@ -292,6 +343,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
             time.sleep(3)
 
             self.cs.experiment.bad_configurations_number = (self.cs.experiment.bad_configurations_number + 1) % 30
+            self._update_general_data(True)
             time.sleep(1)
 
             #self._update_general_data()

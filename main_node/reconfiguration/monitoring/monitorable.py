@@ -13,6 +13,7 @@ class Monitorable:
     instances = [] # Temporarly save instances until there are processed
 
     def __init__(self):
+        self.active = True
         self._runtimes = {} # Keeps track of current runtime measurements
 
         self._attribute_types = {} # Determines the default display behavior in the front-end
@@ -27,15 +28,15 @@ class Monitorable:
         """Added default behavior to notify on value change. Does not affect lists, dicts, etc."""
         try:
             if (hasattr(self, name) and getattr(self, name) != value):
-                self.value_changed(name, value, old_value=getattr(self, name))
+                self.attribute_value_changed(name, value, old_value=getattr(self, name))
         except Exception as e:
             print("WARNING: Exception in monitorable:", e)
 
         super().__setattr__(name, value)
 
-    def value_changed(self, name, value, old_value=None):
+    def attribute_value_changed(self, name, value, old_value=None):
         """Send a attribute change event. Old value may be None"""
-        if not Monitorable.active:
+        if not Monitorable.active or not self.active:
             return
 
         # Check whitelist
@@ -45,8 +46,6 @@ class Monitorable:
         # Check blacklist
         if name in self._blacklist:
             return
-
-        print(f"Monitor: {name} changed to {value}")
 
         event = {"type": "attribute_change",
                  "name": name,
@@ -79,10 +78,16 @@ class Monitorable:
 
     def start_runtime(self, name:str):
         """Start the a runtime measurement"""
+        if not self.active:
+            return
+        
         self._runtimes[name] = time.time()
 
     def stop_runtime(self, name:str):
         """End and send runtime measurement"""
+        if not self.active:
+            return
+        
         if name not in self._runtimes:
             raise Exception("Runtime measurement %s was never started", name)
 
@@ -116,6 +121,9 @@ class Monitorable:
     def whitelist_attributes(self, whitelist:list|None, overwrite:bool=False):
         """Add or overwrite the whitelistet attributes. Set `whitelist` to None to deactivate the whitelist.
         To define the default value type use a dict `{name: ATTR_NAME, value_type: TYPE}`"""
+        if not self.active:
+            return
+        
         # Deactivate whitelist
         if whitelist is None:
             self._whitelist = None
@@ -150,12 +158,18 @@ class Monitorable:
         """Set the default value type of a attribute for the front-end. Will only be applied if the setting is done before the registration"""
         self._attribute_types[attr_name] = value_type
 
+    def deactivate_monitoring(self):
+        """Turn off monitoring functions. Need to be called if the instance is not part of the main workflow!"""
+        self.active = False
+        Monitorable.instances.remove(self)
+        return self
+
     def publish_event(self, event:dict):
         """Publish a monitor event. (Overwrite for unit tests)"""
         if Monitorable.experiment_id is None:
             raise Exception("experiment_id of this class must be set")
 
-        if not Monitorable.active:
+        if not Monitorable.active or not self.active:
             return
 
         event.update({

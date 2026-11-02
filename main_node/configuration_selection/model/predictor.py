@@ -59,7 +59,7 @@ class Predictor(Monitorable):
         self.logger = logging.getLogger(__name__)
 
         super().__init__()
-        self.whitelist_attributes(["window_size"])
+        self.whitelist_attributes([])
 
     @Effector.effector("Predictor_Values")
     def _init_values(self, description):
@@ -74,7 +74,7 @@ class Predictor(Monitorable):
                                  (description, r))
             self.mapping_region_sampling_strategy[r] = sampling_strategy
 
-    @Monitorable.monitor_runtime
+    @Monitorable.monitor_runtime()
     def predict(self, measured_configurations: List[Configuration], sample: bool = False) -> List[Configuration]:
         """
         Predict or sample one or multiple configurations
