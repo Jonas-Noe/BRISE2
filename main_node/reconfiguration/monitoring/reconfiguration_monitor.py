@@ -32,11 +32,13 @@ class MonitorData():
         self.key = comp_data["key"]
         self.active = comp_data["active"]
         self.region = comp_data.get("region", None)
+        self.comp_data = dict([(k, v) for k, v in comp_data.items() if k not in ["key", "active", "region"]]) # Add additonal comp data (maybe create a class attribute out of them?)
         self.obj_class = monitor_or_id.__class__.__name__ if is_monitor else ""
 
         self.attributes = {}
 
-        if is_monitor and (isinstance(monitor_or_id, Experiment) or isinstance(monitor_or_id, Predictor) or isinstance(monitor_or_id, Model)):
+        # TODO: Remove check for whitelist
+        if is_monitor and monitor_or_id._whitelist is not None:
             for name, v in monitor_or_id.get_attributes().items():
                 self.attributes[name] = {"value_type": monitor_or_id._attribute_types.get(name, None),
                                          "values": [self._time_stamped_value(v)]}
@@ -157,12 +159,13 @@ class ReconfigurationMonitor(metaclass=Singleton):
             for model in self.cs.predictor.mapping_region_model.values():
                 for surrogate in model.mapping_surrogate_objective.keys():
                     if surrogate == comp:
-                    #if surrogate.surrogate_description == comp.surrogate_description:
                         return {"key": "Predictor." + model.model_name + "." + model.get_surrogate_vp(comp),
                                 "active": True,
                                 "region": model.region[0].name}
 
             # Search for surrogate in dynamic composite surrogates
+            print("Found surrogate but could not detect the origin!")
+            print(comp)
             
             return default
 

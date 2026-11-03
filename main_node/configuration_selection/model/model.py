@@ -25,8 +25,11 @@ class Model(Monitorable):
         self.objectives = objectives
 
         self.surrogate_orchestrator = SurrogateOrchestrator()
+        self.s_c = 0
+        self.s_o = 0
 
         self._init_model(model_description, vpoint=model_name)
+
         super().__init__()
         self.whitelist_attributes(["time_to_build",
                                    {"name": "model_description", "value_type": "string"},
@@ -113,11 +116,10 @@ class Model(Monitorable):
             # Create surrogate for each objective function
             for i, o_name in enumerate(self.objectives.keys()):
                 obj = {o_name: self.objectives[o_name]}
-                s = self.surrogate_orchestrator.get_surrogate(description, region, obj)
                 self.__create_surrogate(description, region, vpoint, obj)
 
                 # Create another one (just once) if the surrogate is multiobjective
-                if s.multi_objective is True and i == 0:
+                if self.is_multi_objective(description) and i == 0:
                     self.__create_surrogate(description, region, vpoint, self.objectives)
                 
             return
@@ -130,6 +132,14 @@ class Model(Monitorable):
         surrogate = self.surrogate_orchestrator.get_surrogate(description, region, objectives)
         self._surrogate_map[vpoint] = self._surrogate_map.get(vpoint, []) + [surrogate]
         self.mapping_surrogate_objective[surrogate] = objectives
+
+    def is_multi_objective(self, description:dict):
+        """Return if the surrogate is a multi objective one based on the description"""
+        if "Instance" not in description.keys():
+            return False
+
+        feature_name = list(description["Instance"].keys())[0]
+        return description["Instance"][feature_name].get("MultiObjective", False)
 
     # Real VP name provided by kwarg vpoint!
     @Effector.effector("Optimizer", identifiers="model_name")

@@ -45,29 +45,33 @@ class TestReconfigurationMonitor:
 
     def test_basic_reconf_monitor_setup(self, reconf_monitor:ReconfigurationMonitor):
         """Test the processing of created monitored components"""
-        print(reconf_monitor.monitor_data)
-
         data = reconf_monitor.monitor_data
         model = list(self.cs.predictor.mapping_region_model.values())[0]
 
         # Constructed data correctly
-        assert any([d.obj_class == "Predictor" and id(self.cs.predictor) == d.obj_id and d.key == "Predictor" for d in data.values()])
-        assert any([d.obj_class == "Model" and id(model) == d.obj_id and d.key == "Predictor.Model" for d in data.values()])
-        assert any([d.obj_class == "MOEA" and d.key == "Predictor.Model.Optimizer" for d in data.values()])
-        assert any([d.obj_class == "MockValidator" and d.key == "Predictor.Model.Validator" for d in data.values()])
-        assert any([d.obj_class == "BestMultiPoint" and d.key == "Predictor.Model.CandidateSelector" for d in data.values()])
-        assert any([d.obj_class == "SobolSequence" and d.key == "SamplingStrategy" for d in data.values()])
-        assert any([d.obj_class == "TreeParzenEstimator" and d.key == "Predictor.Model.Surrogate" for d in data.values()])
+        assert_key_and_class_amount(data, "Predictor", "Predictor", 1)
+        assert_obj_matches_monitor_obj(data, "Predictor", "Predictor", self.cs.predictor)
 
+        assert_key_and_class_amount(data, "SamplingStrategy", "SobolSequence", 1)
+
+        assert_key_and_class_amount(data, "Predictor.Model", "Model", 1)
+        assert_obj_matches_monitor_obj(data, "Predictor.Model", "Model", model)
+
+        assert_key_and_class_amount(data, "Predictor.Model.Optimizer", "MOEA", 1)
+        assert_key_and_class_amount(data, "Predictor.Model.Validator", "MockValidator", 1)
+        assert_key_and_class_amount(data, "Predictor.Model.CandidateSelector", "BestMultiPoint", 1)
+        assert_key_and_class_amount(data, "Predictor.Model.Surrogate", "TreeParzenEstimator", 1)
+        
         # Cleared created instances
         assert len(Monitorable.instances) == 0
 
         # TODO: Adapt for more monitorbale components?
 
-        #assert False, "Nothing wrong but i want print"
+        # Overall checks
+        assert not any([d.key == None for d in data.values()])
 
     def test_complex_reconf_monitor_setup(self, reconf_monitor_exp_8:ReconfigurationMonitor):
-        """Test that the setup works for complex (hierarchal) experiments"""
+        """Test that the setup works for complex (hierarchical) experiments"""
         reconf_monitor = reconf_monitor_exp_8
 
         data = reconf_monitor.monitor_data
@@ -111,23 +115,20 @@ class TestReconfigurationMonitor:
         assert_key_and_class_amount(data, "Predictor.Model_1.Surrogate_2", "SklearnWrapper", 4)
         assert_key_and_class_amount(data, "Predictor.Model_1.Surrogate_3", "ModelMock", 6) # + 1 per model since it is multi objective
 
-        return
-        #assert_obj_matches_monitor_obj(data, "Predictor.Model_1.Surrogate", "MultiArmedBandit", list(model_one.mapping_surrogate_objective.keys())[0])
-
         ## CandidateSelector
-        assert_key_and_class_amount(data, "Predictor.Model_0.CandidateSelector", "BestMultiPoint", 1)
-        assert_obj_matches_monitor_obj(data, "Predictor.Model_0.CandidateSelector", "BestMultiPoint", model_one.candidate_selector)
+        assert_key_and_class_amount(data, "Predictor.Model_1.CandidateSelector", "RandomMultiPoint", 2)
 
         ## Optimizer
-        assert_key_and_class_amount(data, "Predictor.Model_0.Optimizer", "RandomSearch", 1)
-        assert_obj_matches_monitor_obj(data, "Predictor.Model_0.Optimizer", "RandomSearch", list(model_one.mapping_optimizer_objective.keys())[0])
+        assert_key_and_class_amount(data, "Predictor.Model_1.Optimizer", "RandomSearch", 2)
 
         ## Validator
-        assert_key_and_class_amount(data, "Predictor.Model_0.Validator", "MockValidator", 1)
-        assert_obj_matches_monitor_obj(data, "Predictor.Model_0.Validator", "MockValidator", model_one.external_validator)
+        assert_key_and_class_amount(data, "Predictor.Model_1.Validator", "QualityValidator", 4)
         
         # Cleared created instances
         assert len(Monitorable.instances) == 0
+
+        # Overall checks
+        assert not any([d.key == None for d in data.values()])
 
         #assert False, "Nothing wrong"
 
