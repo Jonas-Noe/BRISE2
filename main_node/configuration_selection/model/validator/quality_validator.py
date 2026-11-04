@@ -24,6 +24,7 @@ class QualityValidator(Validator):
         elif self.split == "KFold":
             self.splitter = KFold(self.validator_description["Split"][self.split]["NumberOfFolds"])
 
+    @Validator.monitor_runtime()
     def validate(self, surrogate: Surrogate, features: pd.DataFrame, labels: pd.DataFrame) -> Tuple[bool, float]:
         if len(features) <= 2:  # not enough configurations for validation
             return False, float(-np.inf)

@@ -20,6 +20,10 @@ class SobolSequence(SamplingStrategy):
         self.sequence = self.sampler.random_base2(20)  # sample 1kk points
         self.index = 0
 
+        self.whitelist_attributes([("index", "static"),
+                                   ("seed", "static")])
+
+    @SamplingStrategy.monitor_runtime()
     def sample(self) -> pd.DataFrame:
         sampled_values = self.sequence[self.index]
         sampled_values = sampled_values.reshape(1, len(sampled_values))  # reshape to 1 row, X columns

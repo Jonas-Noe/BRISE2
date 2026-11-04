@@ -14,13 +14,14 @@ class Monitorable:
 
     def __init__(self):
         self.active = True
+        self._created = int(time.time() * 1000)
         self._runtimes = {} # Keeps track of current runtime measurements
 
         self._attribute_types = {} # Determines the default display behavior in the front-end
 
         # Whitelist and blacklist for attribute tracking
         self._whitelist = None
-        self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "_attribute_types", "instances", "experiment_id", "active"]
+        self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "_attribute_types", "_created", "instances", "experiment_id", "active"]
 
         Monitorable.instances.append(self)
 
@@ -120,14 +121,14 @@ class Monitorable:
 
     def whitelist_attributes(self, whitelist:list|None, overwrite:bool=False):
         """Add or overwrite the whitelistet attributes. Set `whitelist` to None to deactivate the whitelist.
-        To define the default value type use a dict `{name: ATTR_NAME, value_type: TYPE}`"""
+        To define the default value type use a dict `{name: ATTR_NAME, value_type: TYPE}` or tuple with (NAME, TYPE)"""
         if not self.active:
-            return
+            return self
         
         # Deactivate whitelist
         if whitelist is None:
             self._whitelist = None
-            return
+            return self
 
         # Overwrite/activate whitelist
         if self._whitelist is None or overwrite:
@@ -136,7 +137,7 @@ class Monitorable:
         # No special arguments
         if all([isinstance(e, str) for e in whitelist]):
             self._whitelist.extend(whitelist)
-            return
+            return self
 
         # Parse additional arguments
         for e in whitelist:
@@ -147,8 +148,14 @@ class Monitorable:
                 self._whitelist.append(e["name"])
                 self._attribute_types[e["name"]] = e["value_type"]
                 continue
+            elif isinstance(e, tuple):
+                self._whitelist.append(e[0])
+                self._attribute_types[e[0]] = e[1]
+                continue
 
             self._whitelist.append(e)
+
+        return self
 
     def blacklist_attributes(self, blacklist:list):
         """Add attributes to the blacklist so they will no longer be monitored"""

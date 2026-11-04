@@ -14,6 +14,7 @@ class MersenneTwister(SamplingStrategy):
         """
         super().__init__(parameters, region)
 
+    @SamplingStrategy.monitor_runtime()
     def sample(self) -> pd.DataFrame:
 
         sampled_values = []

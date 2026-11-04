@@ -41,6 +41,9 @@ class Optimizer(MonitorableABC):
                     self.value_transformers.append(value_transformer)
 
         super().__init__()
+        self.whitelist_attributes(["feature_name",
+                                   ("objectives", "code"),
+                                   ("optimizer_description", "code")])
 
     @abstractmethod
     def optimize(self, surrogate: Surrogate) -> pd.DataFrame:

@@ -7,7 +7,6 @@ from typing import Dict, Tuple
 from configuration_selection.model.surrogate.surrogate_abs import Surrogate
 from core_entities.search_space import CategoricalHyperparameter
 
-
 class MultiArmedBandit(Surrogate):
 
     def __init__(self, surrogate_description: Dict, region: Tuple, objectives: Dict):
@@ -16,6 +15,7 @@ class MultiArmedBandit(Surrogate):
         self.multi_objective = surrogate_description['Instance']['MultiArmedBandit']['MultiObjective']
         self.c = surrogate_description['Instance']['MultiArmedBandit']['Parameters']['c']
 
+    @Surrogate.monitor_runtime()
     def create(self, features: pd.DataFrame, labels: pd.DataFrame) -> bool:
         if self.objective["Minimization"]:
             raise TypeError("Multi Armed Bandit optimizer performs only maximization tasks!")

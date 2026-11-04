@@ -9,6 +9,8 @@ class CandidateSelector(MonitorableABC):
         self.number_of_points = candidate_selector_description[self.feature_name]["NumberOfPoints"]
 
         super().__init__()
+        self.whitelist_attributes(["feature_name", "number_of_points",
+                                   ("candidate_selector_description", "code")])
 
     @abstractmethod
     def select_candidates(self, candidates: pd.DataFrame) -> pd.DataFrame:

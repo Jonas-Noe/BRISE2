@@ -15,6 +15,8 @@ from configuration_selection.model.model import Model
 from reconfiguration.effector import Effector
 from reconfiguration.monitoring.monitorable import Monitorable
 
+REGION_COLUMN_SUFFIX = "__region"
+
 class Predictor(Monitorable):
     """
     This class abstract notion of prediction within tree-shaped search space from the underlying models.
@@ -59,7 +61,7 @@ class Predictor(Monitorable):
         self.logger = logging.getLogger(__name__)
 
         super().__init__()
-        self.whitelist_attributes([])
+        self.whitelist_attributes([("task_config", "code")])
 
     @Effector.effector("Predictor_Values")
     def _init_values(self, description):

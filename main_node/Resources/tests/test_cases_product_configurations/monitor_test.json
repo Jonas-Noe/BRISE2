@@ -37,9 +37,9 @@
     },
     "ConfigurationSelection": {
         "SamplingStrategy": {
-            "MersenneTwister": {
+            "Sobol": {
                 "Seed": 1,
-                "Type": "mersenne_twister"
+                "Type": "sobol"
             }
         },
         "Predictor": {

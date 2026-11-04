@@ -48,6 +48,9 @@ class Surrogate(MonitorableABC):
         self.multi_objective = False
 
         super().__init__()
+        self.whitelist_attributes(["feature_name", "multi_objective",
+                                   {"name": "surrogate_description", "value_type": "code"},
+                                   {"name": "objectives", "value_type": "code"}])
 
     @abstractmethod
     def create(self, features: pd.DataFrame, labels: pd.DataFrame) -> bool:

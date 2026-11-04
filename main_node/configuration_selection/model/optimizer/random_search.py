@@ -13,6 +13,7 @@ class RandomSearch(Optimizer):
         self.sampling_size = optimizer_description["Instance"][self.feature_name]["SamplingSize"]
         self.sampler = MersenneTwister({}, region).deactivate_monitoring()
 
+    @Optimizer.monitor_runtime()
     def optimize(self, surrogate: Surrogate) -> pd.DataFrame:
         """
         :returns: pd.Dataframe: (n,m), where n is sampling size and m the number of parameters

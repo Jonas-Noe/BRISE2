@@ -13,6 +13,8 @@ class Validator(MonitorableABC):
         self.objectives = objectives
 
         super().__init__()
+        self.whitelist_attributes([("region", "code"), ("objectives", "code"),
+                                   ("validator_description", "code")])
 
     @abstractmethod
     def validate(self, surrogate: Surrogate, features: pd.DataFrame, labels: pd.DataFrame) -> Tuple[bool, float]:

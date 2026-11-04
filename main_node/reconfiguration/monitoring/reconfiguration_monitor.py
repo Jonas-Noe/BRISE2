@@ -34,6 +34,7 @@ class MonitorData():
         self.region = comp_data.get("region", None)
         self.comp_data = dict([(k, v) for k, v in comp_data.items() if k not in ["key", "active", "region"]]) # Add additonal comp data (maybe create a class attribute out of them?)
         self.obj_class = monitor_or_id.__class__.__name__ if is_monitor else ""
+        self.created = monitor_or_id._created if is_monitor else int(time.time() * 1000)
 
         self.attributes = {}
 
@@ -157,11 +158,12 @@ class ReconfigurationMonitor(metaclass=Singleton):
 
         if isinstance(comp, Surrogate):
             for model in self.cs.predictor.mapping_region_model.values():
-                for surrogate in model.mapping_surrogate_objective.keys():
+                for surrogate, objectives in model.mapping_surrogate_objective.items():
                     if surrogate == comp:
                         return {"key": "Predictor." + model.model_name + "." + model.get_surrogate_vp(comp),
                                 "active": True,
-                                "region": model.region[0].name}
+                                "region": model.region[0].name,
+                                "objectives": objectives}
 
             # Search for surrogate in dynamic composite surrogates
             print("Found surrogate but could not detect the origin!")
@@ -245,7 +247,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
         """Process given event. Separated from `_on_event` to allow for direct acccess (for testing)."""
         # Validate event
         if not all(key in event.keys() for key in ["obj_id", "type"]): #"class_name", "type"
-            raise Exception("Invalid monitoring event received. Missing mandatory keys! %s", event)
+            raise Exception("Invalid monitoring event received. Missing mandatory keys! ", event)
 
         #print("Monitor event:", event)
         t = event["type"]
@@ -253,7 +255,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
 
         # Check if object is registered
         if obj_id not in self.monitor_data:
-            raise Exception("Unable to process event. Object id not found in self.monitoring_data. Components is not registered! Event: %s", event)
+            raise Exception("Unable to process event. Object id not found in self.monitoring_data. Components is not registered! Event: ", event)
 
         # Create the front-end event template
         data_obj = self.monitor_data[obj_id]
@@ -266,7 +268,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
         elif t == "runtime":
             self._publish_to_front_end(data_obj.add_runtime(event["name"], event["time_ms"]))
         else:
-            self.logger.error("Tried to process unknown event: %s", event)
+            self.logger.error("Tried to process unknown event: ", event)
             return
 
     def _publish_to_front_end(self, event:dict):

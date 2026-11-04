@@ -13,6 +13,7 @@ class EnergyValidator(Validator):
         optimizer_description = {"Instance": {"RandomSearch": {"SamplingSize": 100}}}
         self._optimizer = RandomSearch(optimizer_description, self.region, self.objectives)
 
+    @Validator.monitor_runtime()
     def validate(self, surrogate: Surrogate, features: pd.DataFrame, labels: pd.DataFrame) -> Tuple[bool, float]:
         results = self._optimizer.optimize(surrogate)
         if all(results["energy"] > 0):

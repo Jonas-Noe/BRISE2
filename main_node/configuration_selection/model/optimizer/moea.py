@@ -93,6 +93,7 @@ class MOEA(Optimizer):
         self.bounds, self.params, self.masked_params = bounds, params, masked_params
         self._borrowed_config_transformer_parameter = borrowed
 
+    @Optimizer.monitor_runtime()
     def optimize(self, surrogate: Surrogate) -> pd.DataFrame:
         self._build_bounds_params_masked(surrogate)
         problem = self._PygmoProblem(optimizer=self, surrogate=surrogate)

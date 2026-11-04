@@ -32,9 +32,9 @@ class Model(Monitorable):
 
         super().__init__()
         self.whitelist_attributes(["time_to_build",
-                                   {"name": "model_description", "value_type": "string"},
-                                   {"name": "objectives", "value_type": "string"},
-                                   {"name": "region", "value_type": "string"}])
+                                   ("region", "code"),
+                                   ("model_description", "code"),
+                                   ("objectives", "code")])
 
     @Effector.effector("Model") # VP Name definied by vpoint arg!
     def _init_model(self, model_description, vpoint=None, **kwargs):

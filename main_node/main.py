@@ -84,7 +84,7 @@ class MainThread(threading.Thread):
                 exp_desc_file_path = argv[1]
             else:
                 exp_desc_file_path = './Resources/EnergyExperiment/EnergyExperiment.json'
-                exp_desc_file_path = './Resources/tests/test_cases_product_configurations/test_case_8.json'
+                exp_desc_file_path = './Resources/tests/test_cases_product_configurations/monitor_test.json'
                 log_msg = f"The Experiment Setup was not provided and the path to an experiment file was not specified." \
                           f" The default one will be executed: {exp_desc_file_path}"
                 self.logger.warning(log_msg)
@@ -166,9 +166,9 @@ class MainThread(threading.Thread):
         self.behaviour_mock = ReconfigurationBehaviourMock(self.reconf, self.configuration_selection)
         self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
-        self.reconf_monitor.send_demo_data()
-        self.reconf_monitor.test_exchange()
-        return
+        #self.reconf_monitor.send_demo_data()
+        #self.reconf_monitor.test_exchange()
+        #return
 
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
