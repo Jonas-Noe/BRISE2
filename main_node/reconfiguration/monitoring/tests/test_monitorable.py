@@ -136,6 +136,22 @@ class TestMonitorable:
         assert_event({"type": "attribute_change", "attr": "name", "value": "Marry"}, monitored_object)
         assert_event({"type": "attribute_change", "attr": "age", "value": 22}, monitored_object, not_send=True)
 
+    def test_attribute_data(self, monitored_object:MonitorObj):
+        """Test the assignment of attribute data like value types and units"""
+        monitored_object.whitelist_attributes([{"name": "name", "value_type": "string"}])
+        monitored_object.whitelist_attributes([{"name": "age", "unit": "int"}])
+
+        assert monitored_object._attribute_data["name"]["value_type"] == "string"
+        assert monitored_object._attribute_data["name"]["unit"] == None
+
+        assert monitored_object._attribute_data["age"]["value_type"] == None
+        assert monitored_object._attribute_data["age"]["unit"] == "int"
+
+        monitored_object.whitelist_attributes([("name", "name")])
+
+        assert monitored_object._attribute_data["name"]["value_type"] == "name"
+        assert monitored_object._attribute_data["name"]["unit"] == None
+
 def assert_event(event:dict, monitorable:Monitorable, not_send:bool=False):
     """Helper method to assert that a special event was send.
     Checks that alle keys that are present in `event`

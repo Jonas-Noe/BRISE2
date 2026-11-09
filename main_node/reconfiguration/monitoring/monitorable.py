@@ -17,11 +17,11 @@ class Monitorable:
         self._created = int(time.time() * 1000)
         self._runtimes = {} # Keeps track of current runtime measurements
 
-        self._attribute_types = {} # Determines the default display behavior in the front-end
+        self._attribute_data = {} # Adds additional attribute data. Keys: value_type, unit
 
         # Whitelist and blacklist for attribute tracking
         self._whitelist = None
-        self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "_attribute_types", "_created", "instances", "experiment_id", "active"]
+        self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "_attribute_data", "_created", "instances", "experiment_id", "active"]
 
         Monitorable.instances.append(self)
 
@@ -121,7 +121,7 @@ class Monitorable:
 
     def whitelist_attributes(self, whitelist:list|None, overwrite:bool=False):
         """Add or overwrite the whitelistet attributes. Set `whitelist` to None to deactivate the whitelist.
-        To define the default value type use a dict `{name: ATTR_NAME, value_type: TYPE}` or tuple with (NAME, TYPE)"""
+        To define the default value type use a dict `{name: ATTR_NAME, value_type: TYPE, unit: UNIT}` or tuple with (NAME, VALUE_TYPE)"""
         if not self.active:
             return self
         
@@ -142,15 +142,34 @@ class Monitorable:
         # Parse additional arguments
         for e in whitelist:
             if isinstance(e, dict):
-                if not "name" in e or not "value_type" in e:
-                    raise Exception("Missing required keys for whitelisting attribute! %s", e)
+                if not "name" in e:
+                    raise Exception("Missing required key 'name' for whitelisting attribute! ", e)
 
-                self._whitelist.append(e["name"])
-                self._attribute_types[e["name"]] = e["value_type"]
+                n = e["name"]
+
+                # Whitelist
+                self._whitelist.append(n)
+
+                # Set attribute data
+                self._attribute_data[n] = {
+                    "value_type": None,
+                    "unit": None
+                }
+
+                for key in ["value_type", "unit"]:
+                    if key not in e:
+                        continue
+
+                    self._attribute_data[n][key] = e[key]
+
                 continue
             elif isinstance(e, tuple):
                 self._whitelist.append(e[0])
-                self._attribute_types[e[0]] = e[1]
+
+                self._attribute_data[e[0]] = {
+                    "value_type": e[1],
+                    "unit": None
+                }
                 continue
 
             self._whitelist.append(e)
@@ -163,7 +182,21 @@ class Monitorable:
 
     def set_attribute_type(self, attr_name:str, value_type:str|None):
         """Set the default value type of a attribute for the front-end. Will only be applied if the setting is done before the registration"""
-        self._attribute_types[attr_name] = value_type
+        self._attribute_data[attr_name]["value_type"] = value_type
+        return self
+
+    def set_attribute_unit(self, attr_name:str, unit:str|None):
+        """Set the unit of a attribute for the front-end. Will only be applied if the setting is done before the registration"""
+        self._attribute_data[attr_name]["unit"] = unit
+        return self
+
+    def get_attribute_data(self, attr_name:str):
+        """Return the attribute data entry if present otherwise return the default values"""
+        if attr_name not in self._attribute_data:
+            return {"value_type": None,
+                    "unit": None}
+        
+        return self._attribute_data[attr_name]
 
     def deactivate_monitoring(self):
         """Turn off monitoring functions. Need to be called if the instance is not part of the main workflow!"""

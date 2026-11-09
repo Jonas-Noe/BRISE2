@@ -41,8 +41,8 @@ class MonitorData():
         # TODO: Remove check for whitelist
         if is_monitor and monitor_or_id._whitelist is not None:
             for name, v in monitor_or_id.get_attributes().items():
-                self.attributes[name] = {"value_type": monitor_or_id._attribute_types.get(name, None),
-                                         "values": [self._time_stamped_value(v)]}
+                self.attributes[name] = {"values": [self._time_stamped_value(v)]}
+                self.attributes[name].update(monitor_or_id.get_attribute_data(name)) # Add attribute meta data
             #print(self.attributes)
 
         self.runtimes = {}

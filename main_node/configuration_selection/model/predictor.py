@@ -61,7 +61,7 @@ class Predictor(Monitorable):
         self.logger = logging.getLogger(__name__)
 
         super().__init__()
-        self.whitelist_attributes([("task_config", "code")])
+        self.whitelist_attributes([("task_config", "code"), "window_size"])
 
     @Effector.effector("Predictor_Values")
     def _init_values(self, description):
