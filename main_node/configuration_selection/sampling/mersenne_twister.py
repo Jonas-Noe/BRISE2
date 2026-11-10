@@ -8,11 +8,11 @@ from core_entities.search_space import Hyperparameter
 
 
 class MersenneTwister(SamplingStrategy):
-    def __init__(self, parameters: Mapping, region: Tuple[Hyperparameter]):
+    def __init__(self, parameters: Mapping, region: Tuple[Hyperparameter], no_monitoring=False):
         """
         Selection algorithm that uses Mersenne Twister pseudo-random generator. <https://docs.python.org/3/library/random.html>
         """
-        super().__init__(parameters, region)
+        super().__init__(parameters, region, no_monitoring=no_monitoring)
 
     @SamplingStrategy.monitor_runtime()
     def sample(self) -> pd.DataFrame:

@@ -10,7 +10,7 @@ from core_entities.search_space import Hyperparameter
 from reconfiguration.monitoring.monitorable import MonitorableABC
 
 class Surrogate(MonitorableABC):
-    def __init__(self, surrogate_description: Dict, region: Tuple, objectives: Dict):
+    def __init__(self, surrogate_description: Dict, region: Tuple, objectives: Dict, no_monitoring=False):
         self.surrogate_instance = None
         self.region = region
         self.objectives = objectives
@@ -47,7 +47,7 @@ class Surrogate(MonitorableABC):
 
         self.multi_objective = False
 
-        super().__init__()
+        super().__init__(no_monitoring=no_monitoring)
         self.whitelist_attributes(["feature_name", "multi_objective",
                                    {"name": "surrogate_description", "value_type": "code"},
                                    {"name": "objectives", "value_type": "code"}])

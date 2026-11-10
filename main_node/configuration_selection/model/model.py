@@ -34,7 +34,8 @@ class Model(Monitorable):
         self.whitelist_attributes(["time_to_build",
                                    ("region", "code"),
                                    ("model_description", "code"),
-                                   ("objectives", "code")])
+                                   ("objectives", "code"),
+                                   ("created_surrogates_descriptions_and_objectives_and_optimizer_descriptions", "code")])
 
     @Effector.effector("Model") # VP Name definied by vpoint arg!
     def _init_model(self, model_description, vpoint=None, **kwargs):
@@ -280,8 +281,10 @@ class Model(Monitorable):
             for csi in comp_surr_input:
                 if len(csi) != len(self.objectives) or len(csi) == 1:
                     continue
-                cs = CompositeSurrogate(csi, self.region)
+                print("AAAAAAAAAAAAAAAAHHHHHHHHHHHHH: Creating CompositeSurrogate!", self.model_name)
+                cs = CompositeSurrogate(csi, self.region, model_name=self.model_name)
                 surrogates_for_outer_validation.append(cs)
+                
         else:
             for s, o in promising_surrogates.items():
                 surrogates_for_outer_validation.append(s)

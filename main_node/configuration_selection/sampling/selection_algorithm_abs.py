@@ -14,7 +14,7 @@ from reconfiguration.monitoring.monitorable import MonitorableABC
 
 class SamplingStrategy(MonitorableABC):
 
-    def __init__(self, parameters: Mapping, region: Tuple[Hyperparameter]):
+    def __init__(self, parameters: Mapping, region: Tuple[Hyperparameter], no_monitoring=False):
         """
         :param parameters: Mapping of internal parameters of the sampling strategy.
         :param region: Tuple[Hyperparameter] region of Hyperparameters which is handled by the sampling strategy.
@@ -24,7 +24,7 @@ class SamplingStrategy(MonitorableABC):
         self.region = region
         self.names = [r.name for r in self.region]
 
-        super().__init__()
+        super().__init__(no_monitoring=no_monitoring)
 
     @abstractmethod
     def sample(self) -> pd.DataFrame:

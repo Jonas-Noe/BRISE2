@@ -11,7 +11,7 @@ class RandomSearch(Optimizer):
     def __init__(self, optimizer_description: Dict, region: Tuple, objectives: Dict):
         super().__init__(optimizer_description, region, objectives)
         self.sampling_size = optimizer_description["Instance"][self.feature_name]["SamplingSize"]
-        self.sampler = MersenneTwister({}, region).deactivate_monitoring()
+        self.sampler = MersenneTwister({}, region, no_monitoring=True)
 
     @Optimizer.monitor_runtime()
     def optimize(self, surrogate: Surrogate) -> pd.DataFrame:

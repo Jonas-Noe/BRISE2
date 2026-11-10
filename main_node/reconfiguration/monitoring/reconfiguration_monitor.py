@@ -4,6 +4,7 @@ import time
 import psutil
 import pika
 import logging
+import gc
 
 from threading import Thread
 
@@ -20,9 +21,12 @@ from configuration_selection.model.predictor import Predictor
 from configuration_selection.model.model import Model
 from configuration_selection.sampling.selection_algorithm_abs import SamplingStrategy
 from configuration_selection.model.surrogate.surrogate_abs import Surrogate
+from configuration_selection.model.surrogate.composite_surrogate import CompositeSurrogate
 from configuration_selection.model.optimizer.optimizer_abs import Optimizer
 from configuration_selection.model.candidate_selector.candidate_selector_abs import CandidateSelector
 from configuration_selection.model.validator.validator_abs import Validator
+
+from default_config_handler.random_default_config_handler import RandomDefaultConfigurationHandler
 
 class MonitorData():
     def __init__(self, monitor_or_id:Monitorable|int, comp_data:dict):
@@ -47,12 +51,12 @@ class MonitorData():
 
         self.runtimes = {}
 
-    def add_attribute_change(self, name:str, value, old_value=None, value_type=None):
-        """Register a new attribute change and returns the front-end event. Setting the value type with this method only works during init via this module!"""
+    def add_attribute_change(self, name:str, value, old_value=None, value_type=None, unit=None):
+        """Register a new attribute change and returns the front-end event. Setting the value type or unit with this method only works during init via this module!"""
         event = self._event_header("attribute_change", {"name": name, "old_value": old_value})
         
         if name not in self.attributes:
-            self.attributes[name] = {"value_type": value_type, "values": []}
+            self.attributes[name] = {"value_type": value_type, "unit": unit, "values": []}
 
         self.attributes[name]["values"].append(self._time_stamped_value(value))
 
@@ -73,7 +77,7 @@ class MonitorData():
         return event
 
     def _time_stamped_value(self, value):
-
+        """Converts the value into a dict with `value` and `timestamp` as key."""
         # Take string values from complex objects
         if not isinstance(value, (str, int, float))\
             and not (isinstance(value, list) and all([isinstance(e, (str, int, float)) for e in value])):
@@ -110,6 +114,8 @@ class ReconfigurationMonitor(metaclass=Singleton):
             0: MonitorData(0, {"key": "General", "active": True})
         }
 
+        self.not_synced = []
+
         self._load_inital_data()
 
         # Activate monitors
@@ -121,15 +127,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
 
     def _load_inital_data(self):
         """Load data from existing monitorable objects and build data"""        
-        for monitor in Monitorable.instances:
-            cls_name = monitor.__class__.__name__
-            print(cls_name)
-
-            # Construct inital monitor data
-            self.monitor_data[id(monitor)] = MonitorData(monitor, self._lookup_comp(monitor))
-            print(self.monitor_data[id(monitor)])
-
-        Monitorable.instances.clear()
+        self._register_monitors(send_to_front_end=False)
 
         # Load general info
         generalData = self.monitor_data[0]
@@ -140,6 +138,41 @@ class ReconfigurationMonitor(metaclass=Singleton):
         generalData.add_attribute_change("Operator", "none")
         generalData.add_attribute_change("Operator", "Marry Smith")
         generalData.add_attribute_change("Operator", "John Doe")
+
+    def _register_monitors(self, send_to_front_end=True):
+        """Register created monitors and rescan monitors for potential replaces"""
+        new_monitors = []
+        events = []
+        processed = []
+        
+        for monitor in Monitorable.instances:
+            cls_name = monitor.__class__.__name__
+            print(cls_name)
+            processed.append(monitor)
+            
+            id_ = id(monitor)
+            if id_ in self.monitor_data:
+                # Mark monitor as synced (data is already added and up to date in this module but front-end never received anything for this monitor)
+                if id_ not in self.not_synced:
+                    raise Exception("Monitor should not be registered! Code bug!", monitor)
+
+                self.not_synced.remove(id_) # Allow front-end events
+                events.append(self._create_monitor_create_event(monitor))
+                continue
+
+            # Construct monitor data
+            events.append(self._create_monitor_data(monitor, send_to_front_end=send_to_front_end))
+            new_monitors.append(self.monitor_data[id_])
+            
+            print("New:", self.monitor_data[id_])
+
+        assert len(processed) == len(Monitorable.instances) # No updates in the meantime
+        Monitorable.instances.clear()
+
+        print("New monitors registered: ", str(len(new_monitors)))
+
+        if send_to_front_end and len(events) > 0:
+            self._publish_to_front_end({"type": "combined", "events": events})
 
     def _lookup_comp(self, comp):
         """Collect data about the monitored component. Returns a dict with the keys `vp` (variation point), `active` (component currently in use)."""
@@ -156,6 +189,12 @@ class ReconfigurationMonitor(metaclass=Singleton):
                     "active": comp in self.cs.predictor.mapping_region_model.values(),
                     "region": comp.region[0].name}
 
+        if isinstance(comp, CompositeSurrogate):
+            return {"key": "Predictor." + comp.model_name + ".CompositeSurrogate",
+                    "active": False,
+                    "region": comp.region[0].name,
+                    "objectives": comp.objectives}
+
         if isinstance(comp, Surrogate):
             for model in self.cs.predictor.mapping_region_model.values():
                 for surrogate, objectives in model.mapping_surrogate_objective.items():
@@ -168,8 +207,8 @@ class ReconfigurationMonitor(metaclass=Singleton):
             # Search for surrogate in dynamic composite surrogates
             print("Found surrogate but could not detect the origin!")
             print(comp)
-            
-            return default
+            #raise Exception("Unknown surrogate monitor created!", comp)
+            #return default
 
         if isinstance(comp, Optimizer):
             for model in self.cs.predictor.mapping_region_model.values():
@@ -178,7 +217,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
                         return {"key": "Predictor." + model.model_name + "." + model.get_optimizer_vp(comp),
                                 "active": True,
                                 "region": model.region[0].name}
-            return default
+            #return default
 
         if isinstance(comp, CandidateSelector):
             for model in self.cs.predictor.mapping_region_model.values():
@@ -187,7 +226,7 @@ class ReconfigurationMonitor(metaclass=Singleton):
                             "active": True,
                             "region": model.region[0].name}
             
-            return default
+            #return default
 
         if isinstance(comp, Validator):
             for model in self.cs.predictor.mapping_region_model.values():
@@ -202,6 +241,8 @@ class ReconfigurationMonitor(metaclass=Singleton):
                     "active": comp in self.cs.predictor.mapping_region_sampling_strategy.values(),
                     "region": comp.region[0].name}
 
+        raise Exception("Unable to look up monitorable instance!", comp)
+        print("Unable to look up comp!")
         return default
 
     def sync(self):
@@ -209,15 +250,29 @@ class ReconfigurationMonitor(metaclass=Singleton):
         Update monitoring data.
         """
         # Is syncing really necessary? There should be no missmatches. So it might be enough to send events here combined.
-        #self._syncing = True
+        self._syncing = True
+        print("Sync monitor data...")
+        print("Unsynced monitors:", len(self.not_synced))
         self._update_general_data(send_to_front_end=True)
 
         # TODO: Update component data
         # TODO: Register new monitors??
+        self._register_monitors()
 
-        
-        # Send buffered events
+        print("Unsynced monitors after:", len(self.not_synced))
+
+        self._syncing = False
+        print("Events arrived during sync:", self._buffered_events)
+
+        if len(self._buffered_events) > 0:
+            processed = self._buffered_events.copy()
+            self._publish_to_front_end({"type": "combined", "events": processed})
+            self._buffered_events = [e for e in self._buffered_events if e not in processed]
+            if len(self._buffered_events):
+                print("OHHHHHHHHHHHHHHHHHHHHH. Got one during sending")
+
         return
+        # Send buffered events
         self._publish_to_front_end({"type": "combined", "events": self._buffered_events})
 
         self._syncing = False
@@ -249,13 +304,29 @@ class ReconfigurationMonitor(metaclass=Singleton):
         if not all(key in event.keys() for key in ["obj_id", "type"]): #"class_name", "type"
             raise Exception("Invalid monitoring event received. Missing mandatory keys! ", event)
 
+        if self._syncing:
+            self._buffered_events.append(event)
+            return
+
         #print("Monitor event:", event)
         t = event["type"]
         obj_id = event["obj_id"]
 
         # Check if object is registered
         if obj_id not in self.monitor_data:
-            raise Exception("Unable to process event. Object id not found in self.monitoring_data. Components is not registered! Event: ", event)
+            monitor_matches = list(filter(lambda i: id(i) == obj_id, Monitorable.instances))
+
+            # No unregistered monitor found for this event
+            if len(monitor_matches) == 0:
+                raise Exception("Unable to process event. Object id not found in self.monitoring_data. Components is not registered! Event: ", event)
+
+            # Create monitor data
+            monitor = monitor_matches[0]
+            #Monitorable.instances.remove(monitor)
+
+            self._create_monitor_data(monitor, send_to_front_end=False)
+            self.not_synced.append(obj_id)
+            print("Added monitor previously unregistered monitor", self.monitor_data[obj_id])
 
         # Create the front-end event template
         data_obj = self.monitor_data[obj_id]
@@ -271,14 +342,43 @@ class ReconfigurationMonitor(metaclass=Singleton):
             self.logger.error("Tried to process unknown event: ", event)
             return
 
+    def _create_monitor_data(self, monitor:Monitorable, send_to_front_end=True):
+        """Create and add the monitor data and return the front-end creation event"""
+        obj_id = id(monitor)
+
+        self.monitor_data[obj_id] = MonitorData(monitor, self._lookup_comp(monitor))
+        event = self._create_monitor_create_event(monitor)
+        
+        if not send_to_front_end:
+            return event
+        
+        self._publish_to_front_end(event)
+        return event
+
+    def _create_monitor_create_event(self, monitor:Monitorable):
+        """Return the front-end create event for a montitor that already has data in self.monitoring_data"""
+        obj_id = id(monitor)
+
+        try:
+            return {"type": "create",
+                    "obj_id": obj_id,
+                    "data": json.dumps(self.monitor_data[obj_id], default=vars)}
+        except Exception as e:
+            raise Exception("WARNING: EXCEPTION when serializing monitor data", e, str(self.monitor_data[obj_id]))
+        
     def _publish_to_front_end(self, event:dict):
         """Publish an event to the front end queue"""
         #if self._syncing:
         #    self._buffered_events.append(event)
         #    return
 
+        # Prevent events from unsynced monitors
+        if event["type"] not in ["create", "combined"]:
+            if event["obj_id"] in self.not_synced:
+                return
+
         publish("", "front_monitor_queue", json.dumps(event))
-        print("Published to front-end", event)
+        #print("Published to front-end", event)
 
     def _on_event(self, ch, method, properties, body):
         """Receive events from queue"""

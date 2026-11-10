@@ -84,7 +84,7 @@ class MainThread(threading.Thread):
                 exp_desc_file_path = argv[1]
             else:
                 exp_desc_file_path = './Resources/EnergyExperiment/EnergyExperiment.json'
-                exp_desc_file_path = './Resources/tests/test_cases_product_configurations/test_case_8.json'
+                exp_desc_file_path = './Resources/tests/test_cases_product_configurations/test_case_5.json'
                 log_msg = f"The Experiment Setup was not provided and the path to an experiment file was not specified." \
                           f" The default one will be executed: {exp_desc_file_path}"
                 self.logger.warning(log_msg)
@@ -167,8 +167,12 @@ class MainThread(threading.Thread):
         self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
         #self.reconf_monitor.send_demo_data()
-        self.reconf_monitor.test_exchange()
-        return
+        #self.reconf_monitor.test_exchange()
+        #return
+
+        # Disable all registration because the random default conf will create a predictor
+        # and therefore register a lot of unncessary components
+        Monitorable.allow_registration = False
 
         dch_o = DefaultConfigHandlerOrchestrator()
         default_config_handler = dch_o.get_default_configuration_handler(experiment=self.experiment)
@@ -177,6 +181,8 @@ class MainThread(threading.Thread):
         self.sub.send('log', 'info', message=temp_msg)
         default_configuration = default_config_handler.get_default_configuration()
         self.experiment.add_evaluated_configuration_to_experiment(default_configuration)
+
+        Monitorable.allow_registration = True
 
         dictionary_dump = {"configuration": default_configuration.to_json()}
         body = json.dumps(dictionary_dump)

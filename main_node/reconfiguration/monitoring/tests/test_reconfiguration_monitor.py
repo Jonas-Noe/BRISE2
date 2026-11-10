@@ -132,6 +132,10 @@ class TestReconfigurationMonitor:
 
         #assert False, "Nothing wrong"
 
+    def test_dynamic_comp_surrogate(self, reconf_monitor_exp_5:ReconfigurationMonitor):
+        """Test the creation of dynamic compositional surroagtes and implicitly the registration of dynamically created monitorables"""
+        
+
 def assert_key_and_class_amount(data:dict, key:str, obj_class:str, key_amount:int, class_amount:int=None):
     assert_key_amount(data, key, key_amount)
     assert_key_class_amount(data, key=key, obj_class=obj_class, amount=key_amount if class_amount is None else class_amount)
