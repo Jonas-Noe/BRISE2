@@ -8,6 +8,7 @@ import pickle
 import threading
 from enum import Enum
 from sys import argv
+import time
 
 import pika
 from configuration_selection.configuration_selection import ConfigurationSelection
@@ -29,6 +30,7 @@ from reconfiguration.reconfiguration_module import ReconfigurationModule
 from reconfiguration.reconfiguration_behaviour_mock import ReconfigurationBehaviourMock
 from reconfiguration.monitoring.reconfiguration_monitor import ReconfigurationMonitor
 from reconfiguration.monitoring.monitorable import Monitorable
+import reconfiguration.monitoring.monitor_logger as m_logger
 
 logging.getLogger("pika").setLevel(logging.WARNING)
 
@@ -60,6 +62,8 @@ class MainThread(threading.Thread):
             self.logger = BRISELogConfigurator().get_logger(__name__)
         else:
             self.logger = logging.getLogger(__name__)
+
+        m_logger.init()
 
         self.experiment: Experiment = None
         self.connection: pika.BlockingConnection = None
@@ -167,8 +171,10 @@ class MainThread(threading.Thread):
         self.reconf_monitor = ReconfigurationMonitor(self.configuration_selection)
 
         #self.reconf_monitor.send_demo_data()
-        #self.reconf_monitor.test_exchange()
-        #return
+        #self.reconf_monitor.test_sending_queue()
+        self.reconf_monitor.send_coruppted_data()
+        self.reconf_monitor.test_exchange()
+        return
 
         # Disable all registration because the random default conf will create a predictor
         # and therefore register a lot of unncessary components
@@ -253,6 +259,7 @@ class MainThread(threading.Thread):
 
                 # Monitoring sync
                 self.reconf_monitor.sync()
+                #time.sleep(3)
 
                 evaluation_time = {"evaluation_time": configuration.get_evaluation_time()}
                 self.consume_channel.basic_publish(exchange='get_worker_capacity_exchange',

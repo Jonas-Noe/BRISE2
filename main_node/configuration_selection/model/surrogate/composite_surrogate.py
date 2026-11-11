@@ -1,6 +1,9 @@
 import pandas as pd
 from typing import Tuple
 
+import logging
+import traceback
+
 from configuration_selection.model.surrogate.surrogate_abs import Surrogate
 
 
@@ -8,6 +11,8 @@ class CompositeSurrogate(Surrogate):
     def __init__(self, surrogates: Tuple[Surrogate], region: Tuple, no_monitoring=False, model_name:str="Model"):
         self.surrogates = surrogates
         self.model_name = model_name # Only for monitoring
+
+        #logging.getLogger("monitor_logger").info("Created Composite Surrogate. ID: %s Stack: %s", id(self), "".join(traceback.format_stack()))
 
         objectives = {}
         surrogate_description = {}
@@ -32,7 +37,6 @@ class CompositeSurrogate(Surrogate):
             is_built.append(i_b)
         return all(is_built) is True
 
-    @Surrogate.monitor_runtime()
     def predict(self, cfg: pd.Series, transform: bool = True) -> pd.DataFrame:
         result = pd.DataFrame()
 

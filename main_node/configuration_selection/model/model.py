@@ -283,6 +283,7 @@ class Model(Monitorable):
                     continue
                 print("AAAAAAAAAAAAAAAAHHHHHHHHHHHHH: Creating CompositeSurrogate!", self.model_name)
                 cs = CompositeSurrogate(csi, self.region, model_name=self.model_name)
+                logging.getLogger("monitor_logger").info("Created CS with id: %s", id(cs))
                 surrogates_for_outer_validation.append(cs)
                 
         else:

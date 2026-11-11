@@ -1,5 +1,6 @@
 import json
 import time
+import logging
 from abc import ABCMeta
 
 from tools.rabbitmq_common_tools import publish
@@ -17,6 +18,7 @@ class Monitorable:
 
     def __init__(self, no_monitoring=False):
         if not Monitorable.allow_registration or no_monitoring:
+            logging.getLogger("monitor_logger").info("Inactive instance created %s %s %s", self, id(self), no_monitoring)
             self.active = False
             return
 
@@ -31,7 +33,7 @@ class Monitorable:
         self._blacklist = ["_blacklist", "_runtimes", "_whitelist", "_attribute_data", "_created", "instances", "experiment_id", "active", "allow_registration"]
 
         Monitorable.instances.append(self)
-        #print("New instance created", self)
+        logging.getLogger("monitor_logger").info("New instance created %s %s", self, id(self))
 
     def __setattr__(self, name, value):
         """Added default behavior to notify on value change. Does not affect lists, dicts, etc."""
@@ -237,6 +239,7 @@ class Monitorable:
         })
         
         #print("Monitor Event published:", event)
+        logging.getLogger("monitor_logger").debug("Monitor published event: %s %s %s", str(self), event, id(self))
         publish("reconf_monitor_event_exchange", Monitorable.experiment_id, json.dumps(event))
 
 class MonitorableABC(Monitorable, metaclass=ABCMeta):
